@@ -65,9 +65,9 @@ export default function Home() {
     fetch('https://ntfy.sh/roscetta', {
       method: 'POST',
       headers: {
-        'Title': 'Ricciolino Prime',
-        'Priority': 'high',
-        'Tags': 'heart,sparkles'
+        'Title': 'Ricciolino Prime: Roscetta',
+        'Tags': 'heart',
+        'Priority': 'high'
       },
       body: message
     }).catch(() => {});
