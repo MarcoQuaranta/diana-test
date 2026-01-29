@@ -20,6 +20,89 @@ export default function Home() {
   const [showMessaggioPersonalizzato, setShowMessaggioPersonalizzato] = useState(false);
   const [messaggioPersonalizzatoInput, setMessaggioPersonalizzatoInput] = useState("");
   const [showDisdetta, setShowDisdetta] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
+  const [showFullGallery, setShowFullGallery] = useState(false);
+  const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
+  const [showBenefits, setShowBenefits] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Swipe handlers per la galleria
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && galleryPhotos.length > 1) {
+      setCurrentPhotoIndex((prev) => (prev === galleryPhotos.length - 1 ? 0 : prev + 1));
+    }
+    if (isRightSwipe && galleryPhotos.length > 1) {
+      setCurrentPhotoIndex((prev) => (prev === 0 ? galleryPhotos.length - 1 : prev - 1));
+    }
+  };
+  const [showComplimentPopup, setShowComplimentPopup] = useState(false);
+  const [currentCompliment, setCurrentCompliment] = useState("");
+  const [showCoinFlip, setShowCoinFlip] = useState(false);
+  const [coinResult, setCoinResult] = useState<string | null>(null);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [coinReason, setCoinReason] = useState("");
+
+  // Lista complimenti AI - AGGIUNGI QUI I TUOI COMPLIMENTI
+  const complimentiAI = [
+    "Sei più bella del tramonto sul mare",
+    "Il tuo sorriso illumina le mie giornate",
+    "Sei la cosa migliore che mi sia mai capitata",
+    // Aggiungi altri complimenti qui...
+  ];
+
+  const generaComplimento = () => {
+    const randomIndex = Math.floor(Math.random() * complimentiAI.length);
+    setCurrentCompliment(complimentiAI[randomIndex]);
+    setShowComplimentPopup(true);
+  };
+
+  const apriMoneta = () => {
+    setCoinResult(null);
+    setIsFlipping(false);
+    setCoinReason("");
+    setShowCoinFlip(true);
+  };
+
+  const lanciaMoneta = () => {
+    setIsFlipping(true);
+    setCoinResult(null);
+
+    setTimeout(() => {
+      const result = Math.random() < 0.5 ? "Ricciolino" : "Roscetta";
+      setCoinResult(result);
+      setIsFlipping(false);
+
+      // Invia notifica con il risultato
+      const motivoTesto = coinReason.trim() ? `per "${coinReason}"` : "";
+      sendNotification(`Moneta delle Decisioni ${motivoTesto}: ha vinto ${result}!`);
+    }, 2000);
+  };
+
+  // Carica foto dalla galleria (generato al build time)
+  useEffect(() => {
+    fetch('/gallery.json')
+      .then(res => res.json())
+      .then(data => setGalleryPhotos(data.photos || []))
+      .catch(() => setGalleryPhotos([]));
+  }, []);
 
   // Controlla se ha già fatto il primo accesso
   useEffect(() => {
@@ -536,6 +619,203 @@ export default function Home() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-pink-600/20 rounded-full blur-3xl" />
 
+      {/* Modal Galleria Completa */}
+      {showFullGallery && (
+        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm overflow-y-auto flex justify-center">
+          <div className="w-full max-w-lg">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black to-transparent">
+              <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400">
+                I nostri ricordi
+              </h2>
+              <button
+                onClick={() => setShowFullGallery(false)}
+                className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Griglia foto */}
+            <div className="grid grid-cols-2 gap-2 p-2 pb-8">
+            {galleryPhotos.map((photo, index) => (
+              <div
+                key={index}
+                onClick={() => setEnlargedPhoto(photo)}
+                className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-purple-500/20 hover:border-pink-500/50"
+              >
+                <Image
+                  src={photo}
+                  alt={`Foto ${index + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Foto Ingrandita */}
+      {enlargedPhoto && (
+        <div
+          className="fixed inset-0 z-[90] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setEnlargedPhoto(null)}
+        >
+          {/* Pulsante chiudi */}
+          <button
+            onClick={() => setEnlargedPhoto(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer z-10"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Foto */}
+          <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={enlargedPhoto}
+              alt="Foto ingrandita"
+              width={1200}
+              height={1200}
+              className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Popup Complimento AI */}
+      {showComplimentPopup && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-cyan-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-cyan-500/20 popup-enter">
+            {/* Icona */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                <span className="text-4xl">🤖</span>
+              </div>
+            </div>
+
+            {/* Titolo */}
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-400 text-center mb-4">
+              Ricciolino AI dice:
+            </h2>
+
+            {/* Complimento */}
+            <div className="bg-purple-900/30 rounded-xl p-4 mb-6">
+              <p className="text-purple-200 text-center text-lg italic">&quot;{currentCompliment}&quot;</p>
+            </div>
+
+            {/* Pulsanti */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowComplimentPopup(false)}
+                className="flex-1 px-6 py-3 bg-purple-900/50 border border-purple-500/30 rounded-full text-purple-300 font-semibold hover:bg-purple-900/70 transition-all duration-300 cursor-pointer"
+              >
+                Chiudi
+              </button>
+              <button
+                onClick={generaComplimento}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full text-white font-semibold hover:scale-105 transition-all duration-300 shadow-lg shadow-cyan-500/30 cursor-pointer"
+              >
+                Altro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup Moneta delle Decisioni */}
+      {showCoinFlip && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-yellow-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-yellow-500/20 popup-enter">
+            {/* Titolo */}
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 text-center mb-2">
+              Moneta delle Decisioni
+            </h2>
+
+            {/* Descrizione */}
+            {!coinResult && !isFlipping && (
+              <p className="text-purple-300/70 text-center text-sm mb-4">
+                Chi farà i piatti? Chi pagherà al sushi? Chi sconfiggerà Freezer? Lancia la moneta e lascia decidere a lei.
+              </p>
+            )}
+
+            {/* Campo motivo */}
+            {!isFlipping && !coinResult && (
+              <input
+                type="text"
+                value={coinReason}
+                onChange={(e) => setCoinReason(e.target.value)}
+                placeholder="Per cosa lanci la moneta? (opzionale)"
+                className="w-full px-4 py-3 rounded-xl bg-purple-900/50 border border-yellow-500/30 text-white placeholder-purple-400/50 focus:outline-none focus:border-yellow-500 mb-4"
+              />
+            )}
+
+            {/* Mostra motivo durante/dopo il lancio */}
+            {(isFlipping || coinResult) && coinReason && (
+              <p className="text-yellow-300/80 text-center text-sm mb-2">
+                &quot;{coinReason}&quot;
+              </p>
+            )}
+
+            {/* Moneta animata */}
+            <div className="flex justify-center my-6">
+              <div
+                className="coin-container w-32 h-32 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 flex items-center justify-center shadow-lg shadow-yellow-500/50"
+                style={{
+                  animation: coinResult && !isFlipping ? 'none' : (isFlipping ? 'coinFlip 0.2s linear infinite' : 'coinSpin 3s linear infinite'),
+                }}
+              >
+                {coinResult && !isFlipping ? (
+                  <div className="flex flex-col items-center">
+                    <span className="text-4xl">{coinResult === "Ricciolino" ? "🦱" : "👩‍🦰"}</span>
+                    <span className="text-yellow-900 font-bold text-xs text-center">
+                      {coinResult}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-5xl font-bold text-yellow-900">$</span>
+                )}
+              </div>
+            </div>
+
+            {/* Risultato */}
+            {coinResult && !isFlipping && (
+              <div className="bg-yellow-900/30 rounded-xl p-4 mb-4">
+                <p className="text-yellow-200 text-center text-lg">
+                  Tocca a <span className="font-bold text-yellow-400">{coinResult}</span>!
+                </p>
+              </div>
+            )}
+
+            {isFlipping && (
+              <p className="text-yellow-300/70 text-center mb-4">Lancio in corso...</p>
+            )}
+
+            {/* Pulsanti */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCoinFlip(false)}
+                className="flex-1 px-6 py-3 bg-purple-900/50 border border-purple-500/30 rounded-full text-purple-300 font-semibold hover:bg-purple-900/70 transition-all duration-300 cursor-pointer"
+              >
+                Chiudi
+              </button>
+              <button
+                onClick={lanciaMoneta}
+                disabled={isFlipping}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-white font-semibold hover:scale-105 transition-all duration-300 shadow-lg shadow-yellow-500/30 cursor-pointer disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {coinResult ? 'Rilancia' : 'Lancia'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pagina Ricciolino Prime */}
       {showPrime && (
         <div className="fixed inset-0 z-50 bg-gradient-to-b from-[#0a0a1a] via-[#1a1a2e] to-[#0a0a1a] overflow-x-hidden overflow-y-auto">
@@ -554,7 +834,7 @@ export default function Home() {
             />
           ))}
 
-          <div className="relative z-10 flex flex-col items-center gap-6 px-4 max-w-2xl mx-auto popup-enter py-12 min-h-screen justify-center">
+          <div className="relative z-10 flex flex-col items-center gap-6 px-2 sm:px-4 max-w-2xl mx-auto popup-enter py-12 min-h-screen justify-center">
             {/* Pulsante esci */}
             <button
               onClick={() => setShowPrime(false)}
@@ -607,71 +887,206 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Pannello Amministrazione */}
-            <div className="w-full bg-gradient-to-br from-[#1a1a2e]/90 to-[#16213e]/90 border border-purple-500/30 rounded-2xl p-6 mt-4 backdrop-blur-sm">
-              <h2 className="text-xl font-bold text-purple-300 text-center mb-6">
-                ⚙️ Sfrutta i tuoi benefici di essere a mija
-              </h2>
+            {/* Galleria Foto */}
+            {galleryPhotos.length > 0 && (
+              <div className="bg-gradient-to-br from-[#1a1a2e]/80 to-[#16213e]/80 border border-pink-500/30 rounded-2xl p-6 backdrop-blur-sm w-full max-w-lg">
+                <p className="text-purple-200 text-center text-lg mb-4">I nostri ricordi</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Prima parte: Bacino, Spupazzamento, Sushi */}
-                {whatsappMessages.slice(0, 3).map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => inviaRichiesta(item.message)}
-                    className="px-4 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                {/* Pulsante Regalino - apre popup con input */}
-                <button
-                  onClick={() => setShowRegalino(true)}
-                  className="px-4 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                {/* Container foto - cliccabile per ingrandire, swipe per scorrere */}
+                <div
+                  onClick={() => setEnlargedPhoto(galleryPhotos[currentPhotoIndex])}
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  className="relative w-full aspect-square max-w-sm mx-auto rounded-xl overflow-hidden border-2 border-purple-500/30 cursor-pointer hover:border-pink-500/50 transition-all touch-pan-y"
                 >
-                  Richiedi Regalino
-                </button>
-                {/* Resto dei pulsanti */}
-                {whatsappMessages.slice(3).map((item, index) => (
-                  <button
-                    key={index + 3}
-                    onClick={() => inviaRichiesta(item.message)}
-                    className="px-4 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-                {/* Pulsante Chiedi scusa - mostra popup invece di WhatsApp */}
-                <button
-                  onClick={() => { sendNotification('Roscetta ha provato a chiedere scusa... HAHAHA'); setShowScusaPopup(true); }}
-                  className="px-4 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
-                >
-                  Chiedi Scusa
-                </button>
-                {/* Pulsante Messaggio Personalizzato - larghezza piena */}
-                <button
-                  onClick={() => setShowMessaggioPersonalizzato(true)}
-                  className="col-span-1 sm:col-span-2 px-4 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
-                >
-                  Messaggio Personalizzato
-                </button>
-                {/* Pulsante Emergenza - dentro il box ma più grande */}
-                <div className="col-span-1 sm:col-span-2 flex flex-col items-center gap-3 mt-4">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-full">
-                    <span className="text-red-400 animate-pulse">⚠️</span>
-                    <p className="text-sm font-medium text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">
-                      Attenzione: usare solo per le emergenze
-                    </p>
-                    <span className="text-red-400 animate-pulse">⚠️</span>
+                  <div key={currentPhotoIndex} className="absolute inset-0 gallery-slide">
+                    <Image
+                      src={galleryPhotos[currentPhotoIndex]}
+                      alt={`Foto ${currentPhotoIndex + 1}`}
+                      fill
+                      className="object-cover"
+                    />
                   </div>
+
+                  {/* Overlay gradiente */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Icona zoom */}
+                  <div className="absolute top-2 right-2 p-2 bg-black/50 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Controlli galleria */}
+                {galleryPhotos.length > 1 && (
+                  <div className="flex items-center justify-center gap-4 mt-4">
+                    <button
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === 0 ? galleryPhotos.length - 1 : prev - 1))}
+                      className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Indicatori */}
+                    <div className="flex gap-2">
+                      {galleryPhotos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentPhotoIndex(index)}
+                          className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                            index === currentPhotoIndex
+                              ? 'bg-pink-500 w-4'
+                              : 'bg-purple-500/50 hover:bg-purple-400'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === galleryPhotos.length - 1 ? 0 : prev + 1))}
+                      className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+
+                {/* Contatore e pulsante allarga */}
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-purple-400/60 text-xs">
+                    {currentPhotoIndex + 1} / {galleryPhotos.length}
+                  </p>
                   <button
-                    onClick={() => { sendNotification('EMERGENZA: Roscetta ha bisogno di sapere quanto la ami!'); setShowLettera(true); }}
-                    className="px-8 py-4 bg-gradient-to-r from-pink-500 via-red-500 to-pink-500 rounded-full text-white font-bold text-lg shadow-lg shadow-pink-500/50 hover:scale-105 hover:shadow-red-500/50 transition-all duration-300 animate-pulse cursor-pointer"
+                    onClick={() => setShowFullGallery(true)}
+                    className="flex items-center gap-1 text-purple-400 hover:text-pink-400 text-xs transition-colors cursor-pointer"
                   >
-                    Premi qui per ricordare quanto il Ricciolino ti ama
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    Vedi tutte
                   </button>
                 </div>
               </div>
+            )}
+
+            {/* Box Ricciolino AI */}
+            <div className="w-full bg-gradient-to-br from-[#1a1a2e]/90 to-[#16213e]/90 border border-cyan-500/30 rounded-2xl p-4 mt-4 backdrop-blur-sm flex-shrink-0">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-2xl">🤖</span>
+                <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-400">
+                  Ricciolino AI
+                </h2>
+              </div>
+              <p className="text-purple-300/70 text-center text-sm mb-4">
+                La versione artificialmente intelligente del tuo Ricciolino
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={generaComplimento}
+                  className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-cyan-600 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/30 cursor-pointer"
+                >
+                  Genera Complimento AI
+                </button>
+                <button
+                  onClick={apriMoneta}
+                  className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:shadow-lg hover:shadow-yellow-500/30 cursor-pointer"
+                >
+                  Moneta delle Decisioni
+                </button>
+              </div>
+            </div>
+
+            {/* Pannello Benefici - Chiudibile */}
+            <div className="w-full bg-gradient-to-br from-[#1a1a2e]/90 to-[#16213e]/90 border border-purple-500/30 rounded-2xl mt-4 backdrop-blur-sm flex-shrink-0 overflow-hidden">
+              <button
+                onClick={() => setShowBenefits(!showBenefits)}
+                className="w-full p-3 flex items-center justify-between cursor-pointer hover:bg-purple-500/10 transition-colors"
+              >
+                <h2 className="text-lg font-bold text-purple-300">
+                  ⚙️ Sfrutta i tuoi benefici di essere a mija
+                </h2>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`h-6 w-6 text-purple-400 transition-transform duration-300 ${showBenefits ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showBenefits && (
+                <div className="p-3 pt-0">
+                  <div className="grid grid-cols-2 gap-2 auto-rows-auto">
+                    {/* Prima parte: Bacino, Spupazzamento, Sushi */}
+                    {whatsappMessages.slice(0, 3).map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => inviaRichiesta(item.message)}
+                        className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    {/* Pulsante Regalino - apre popup con input */}
+                    <button
+                      onClick={() => setShowRegalino(true)}
+                      className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                    >
+                      Richiedi Regalino
+                    </button>
+                    {/* Resto dei pulsanti */}
+                    {whatsappMessages.slice(3).map((item, index) => (
+                      <button
+                        key={index + 3}
+                        onClick={() => inviaRichiesta(item.message)}
+                        className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    {/* Pulsante Chiedi scusa - mostra popup invece di WhatsApp */}
+                    <button
+                      onClick={() => { sendNotification('Roscetta ha provato a chiedere scusa... HAHAHA'); setShowScusaPopup(true); }}
+                      className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                    >
+                      Chiedi Scusa
+                    </button>
+                    {/* Pulsante Messaggio Personalizzato - larghezza piena */}
+                    <button
+                      onClick={() => setShowMessaggioPersonalizzato(true)}
+                      className="col-span-2 px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                    >
+                      Messaggio Personalizzato
+                    </button>
+                    {/* Pulsante Emergenza SOS - sempre visibile */}
+                    <div className="col-span-2 flex flex-col items-center gap-3 mt-4 flex-shrink-0 min-h-[120px]">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-full flex-shrink-0">
+                        <span className="text-red-400 animate-pulse">⚠️</span>
+                        <p className="text-sm font-medium text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">
+                          Attenzione: usare solo per le emergenze
+                        </p>
+                        <span className="text-red-400 animate-pulse">⚠️</span>
+                      </div>
+                      <button
+                        onClick={() => { sendNotification('EMERGENZA: Roscetta ha bisogno di sapere quanto la ami!'); setShowLettera(true); }}
+                        className="px-4 py-4 bg-gradient-to-r from-pink-500 via-red-500 to-pink-500 rounded-2xl text-white font-bold text-base shadow-lg shadow-pink-500/50 hover:scale-105 hover:shadow-red-500/50 transition-all duration-300 animate-pulse cursor-pointer flex-shrink-0 text-center w-full max-w-xs"
+                      >
+                        Premi qui per ricordare quanto il Ricciolino ti ama
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Disdici abbonamento - fuori dal box */}

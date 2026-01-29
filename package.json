@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "pregallery": "node scripts/generate-gallery.js",
+    "dev": "npm run pregallery && next dev",
+    "build": "npm run pregallery && next build",
     "start": "next start",
     "lint": "eslint"
   },
