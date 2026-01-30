@@ -335,7 +335,7 @@ export default function Home() {
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-pink-800 to-purple-900">
               {/* Foto principale */}
               <Image
-                src="/images/galleria/1.jpg"
+                src="/images/galleria/1.webp"
                 alt="La nostra foto"
                 fill
                 className="object-cover"
