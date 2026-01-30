@@ -25,34 +25,7 @@ export default function Home() {
   const [showFullGallery, setShowFullGallery] = useState(false);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
   const [showBenefits, setShowBenefits] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // Swipe handlers per la galleria
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && galleryPhotos.length > 1) {
-      setCurrentPhotoIndex((prev) => (prev === galleryPhotos.length - 1 ? 0 : prev + 1));
-    }
-    if (isRightSwipe && galleryPhotos.length > 1) {
-      setCurrentPhotoIndex((prev) => (prev === 0 ? galleryPhotos.length - 1 : prev - 1));
-    }
-  };
+  const [visiblePhotosCount, setVisiblePhotosCount] = useState(6); // Lazy loading: inizia con 6 foto
   const [showComplimentPopup, setShowComplimentPopup] = useState(false);
   const [currentCompliment, setCurrentCompliment] = useState("");
   const [showCoinFlip, setShowCoinFlip] = useState(false);
@@ -858,7 +831,7 @@ export default function Home() {
               I nostri ricordi
             </h2>
             <button
-              onClick={() => setShowFullGallery(false)}
+              onClick={() => { setShowFullGallery(false); setVisiblePhotosCount(6); }}
               className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -867,10 +840,19 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Griglia foto scrollabile */}
-          <div className="flex-1 overflow-y-auto scroll-container">
+          {/* Griglia foto scrollabile con lazy loading */}
+          <div
+            className="flex-1 overflow-y-auto scroll-container"
+            onScroll={(e) => {
+              const target = e.target as HTMLDivElement;
+              const bottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 200;
+              if (bottom && visiblePhotosCount < galleryPhotos.length) {
+                setVisiblePhotosCount(prev => Math.min(prev + 6, galleryPhotos.length));
+              }
+            }}
+          >
             <div className="grid grid-cols-2 gap-2 p-2 pb-8 max-w-lg mx-auto">
-              {galleryPhotos.map((photo, index) => (
+              {galleryPhotos.slice(0, visiblePhotosCount).map((photo, index) => (
                 <div
                   key={index}
                   onClick={() => setEnlargedPhoto(photo)}
@@ -886,6 +868,12 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            {/* Indicatore caricamento */}
+            {visiblePhotosCount < galleryPhotos.length && (
+              <p className="text-purple-400/60 text-center text-sm pb-4">
+                Scorri per caricare altre foto...
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -1124,22 +1112,31 @@ export default function Home() {
               <div className="bg-gradient-to-br from-[#1a1a2e]/80 to-[#16213e]/80 border border-pink-500/30 rounded-2xl p-6 backdrop-blur-sm w-full">
                 <p className="text-purple-200 text-center text-lg mb-4">I nostri ricordi</p>
 
-                {/* Container foto - cliccabile per ingrandire, swipe per scorrere */}
+                {/* Container foto - cliccabile per ingrandire */}
                 <div
                   onClick={() => setEnlargedPhoto(galleryPhotos[currentPhotoIndex])}
-                  onTouchStart={onTouchStart}
-                  onTouchMove={onTouchMove}
-                  onTouchEnd={onTouchEnd}
-                  className="relative w-full aspect-square mx-auto rounded-xl overflow-hidden border-2 border-purple-500/30 cursor-pointer hover:border-pink-500/50 transition-all touch-pan-y"
+                  className="relative w-full aspect-square mx-auto rounded-xl overflow-hidden border-2 border-purple-500/30 cursor-pointer hover:border-pink-500/50 transition-all"
                 >
-                  <div key={currentPhotoIndex} className="absolute inset-0 gallery-slide">
-                    <Image
-                      src={galleryPhotos[currentPhotoIndex]}
-                      alt={`Foto ${currentPhotoIndex + 1}`}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+                  {/* Solo 3 foto nel DOM: corrente, precedente, successiva */}
+                  {[
+                    (currentPhotoIndex - 1 + galleryPhotos.length) % galleryPhotos.length,
+                    currentPhotoIndex,
+                    (currentPhotoIndex + 1) % galleryPhotos.length
+                  ].filter((v, i, a) => a.indexOf(v) === i).map((photoIndex) => (
+                    <div
+                      key={photoIndex}
+                      className={`absolute inset-0 ${photoIndex === currentPhotoIndex ? 'gallery-slide' : 'hidden'}`}
+                    >
+                      <Image
+                        src={galleryPhotos[photoIndex]}
+                        alt={`Foto ${photoIndex + 1}`}
+                        fill
+                        className="object-cover"
+                        priority={photoIndex === currentPhotoIndex}
+                        loading={photoIndex === currentPhotoIndex ? "eager" : "lazy"}
+                      />
+                    </div>
+                  ))}
 
                   {/* Overlay gradiente */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />

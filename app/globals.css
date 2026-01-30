@@ -69,9 +69,7 @@ body {
 .globe {
   animation: spin-globe 8s linear infinite, pulse-glow 4s ease-in-out infinite;
   transform-style: preserve-3d;
-  will-change: transform, box-shadow;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .star {
