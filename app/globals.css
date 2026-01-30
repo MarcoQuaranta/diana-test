@@ -63,11 +63,12 @@ body {
 .globe-container {
   perspective: 1000px;
   transform-style: preserve-3d;
-  contain: layout style paint;
+  padding: 40px;
+  margin: -40px;
 }
 
 .globe {
-  animation: spin-globe 8s linear infinite, pulse-glow 4s ease-in-out infinite;
+  animation: spin-globe 8s linear infinite;
   transform-style: preserve-3d;
   will-change: transform;
 }
