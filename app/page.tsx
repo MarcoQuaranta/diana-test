@@ -60,12 +60,117 @@ export default function Home() {
   const [isFlipping, setIsFlipping] = useState(false);
   const [coinReason, setCoinReason] = useState("");
 
-  // Lista complimenti AI - AGGIUNGI QUI I TUOI COMPLIMENTI
+  // Captcha states
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [currentCaptcha, setCurrentCaptcha] = useState(0);
+  const [captchaError, setCaptchaError] = useState(false);
+  const [selectedCaptchaItems, setSelectedCaptchaItems] = useState<number[]>([]);
+
+  // Scarcerazione Bossetti states
+  const [showScarcerazione, setShowScarcerazione] = useState(false);
+  const [scarcerazioneProgress, setScarcerazioneProgress] = useState(0);
+  const [scarcerazioneComplete, setScarcerazioneComplete] = useState(false);
+
+  // Dati dei 3 captcha - griglia 3x3
+  const captchaData = [
+    {
+      question: "Seleziona chi faceva arrivare i treni in orario.",
+      type: "images" as const,
+      items: [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Einstein_1921_by_F_Schmutzer_-_restoration.jpg/200px-Einstein_1921_by_F_Schmutzer_-_restoration.jpg",
+        "https://www.keblog.it/wp-content/uploads/2020/10/personaggi-storici-belli-affascinanti-25.jpg",
+        "https://upload.wikimedia.org/wikipedia/it/thumb/0/08/Francesco_Totti_-_AS_Roma_1996-97.jpg/200px-Francesco_Totti_-_AS_Roma_1996-97.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Mahatma-Gandhi%2C_studio%2C_1931.jpg/200px-Mahatma-Gandhi%2C_studio%2C_1931.jpg",
+        "https://cdn.britannica.com/91/9891-050-DC25B5E5/Benito-Mussolini.jpg?w=200",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Jacques-Louis_David_-_The_Emperor_Napoleon_in_His_Study_at_the_Tuileries_-_Google_Art_Project_2.jpg/200px-Jacques-Louis_David_-_The_Emperor_Napoleon_in_His_Study_at_the_Tuileries_-_Google_Art_Project_2.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Abraham_Lincoln_O-77_matte_collodion_print.jpg/200px-Abraham_Lincoln_O-77_matte_collodion_print.jpg",
+        "https://www.shutterstock.com/image-photo/nuremberg-germany-august-9-2024-600nw-2516622489.jpg",
+        "https://media.licdn.com/dms/image/v2/C5603AQFKIZf4dA8cAQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1548710517430?e=2147483647&v=beta&t=OcmpIDtJkTJ6pmHmUA7zpGmXFAp0N1XMRMk1XDhLWYA",
+      ],
+      correctIndex: [4, 7], // Mussolini e Hitler
+    },
+    {
+      question: "Seleziona chi dovrebbe essere libero.",
+      type: "images" as const,
+      items: [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Al_Capone_in_1930.jpg/200px-Al_Capone_in_1930.jpg",
+        "https://images.theconversation.com/files/195825/original/file-20171122-6013-1u1ewka.jpg?ixlib=rb-4.1.0&q=45&auto=format&w=200&fit=clip",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEdLbJD6X3JYuE6nKH9b2zB3O5L5-fsGF3dg&s",
+        "https://images2.corriereobjects.it/methode_image/2013/10/10/Interni/Foto%20Interni/INT20F1_7747722F1_23667.jpg?v=20131010151732",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Ted_Bundy_headshot.jpg/200px-Ted_Bundy_headshot.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/LuckyLucianoSmaller.jpeg/200px-LuckyLucianoSmaller.jpeg",
+        "https://www.repstatic.it/content/nazionale/img/2021/08/17/183523039-e9489737-2944-4741-a8c5-a682104bb4bb.jpg",
+        "https://www.altalex.com/~/media/Images/Lex/Asca/Varie/bossetti-massimo-512%20jpg.jpg",
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrdYGyu1E8DopozCGPfGAYDVn88tZMUhUqUg&s",
+      ],
+      correctIndex: [7], // Bossetti
+    },
+  ];
+
+  const handleCaptchaClick = (index: number) => {
+    const correctIndices = captchaData[currentCaptcha].correctIndex;
+
+    // Se già selezionato, ignora
+    if (selectedCaptchaItems.includes(index)) return;
+
+    if (correctIndices.includes(index)) {
+      setCaptchaError(false);
+      const newSelected = [...selectedCaptchaItems, index];
+      setSelectedCaptchaItems(newSelected);
+
+      // Controlla se tutte le risposte corrette sono state selezionate
+      const allCorrectSelected = correctIndices.every(i => newSelected.includes(i));
+
+      if (allCorrectSelected) {
+        // Passa al prossimo captcha o mostra scarcerazione
+        setTimeout(() => {
+          if (currentCaptcha < 1) {
+            setCurrentCaptcha(currentCaptcha + 1);
+            setSelectedCaptchaItems([]);
+          } else {
+            // Mostra popup scarcerazione
+            setShowCaptcha(false);
+            setCurrentCaptcha(0);
+            setSelectedCaptchaItems([]);
+            setShowScarcerazione(true);
+            setScarcerazioneProgress(0);
+            setScarcerazioneComplete(false);
+
+            // Avvia il caricamento di 10 secondi
+            const interval = setInterval(() => {
+              setScarcerazioneProgress(prev => {
+                if (prev >= 100) {
+                  clearInterval(interval);
+                  setScarcerazioneComplete(true);
+                  return 100;
+                }
+                return prev + 1;
+              });
+            }, 100); // 100ms * 100 = 10 secondi
+          }
+        }, 500);
+      }
+    } else {
+      // Risposta sbagliata - resetta selezioni
+      setCaptchaError(true);
+      setSelectedCaptchaItems([]);
+    }
+  };
+
+  // Lista complimenti AI
   const complimentiAI = [
-    "Sei più bella del tramonto sul mare",
-    "Il tuo sorriso illumina le mie giornate",
-    "Sei la cosa migliore che mi sia mai capitata",
-    // Aggiungi altri complimenti qui...
+    "Sij cchiu tost do' pan da semmana passata.",
+    "Sij chiù bell e nu bonifico in entrata.",
+    "Sij nu suonn comm a tredicesim pe' partite iva.",
+    "Tien 'a forza 'e attrazione di un buco nero.",
+    "Me faje battere o core comme nu rigore ndo recupero.",
+    "Sij talment a mij che aggia pava o bollo nguoll a te.",
+    "Ti amo nda stessa manera in cui respiro.",
+    "Sij bella comm a na butteglia 'e acqua quanne te scete in hangover.",
+    "Da quanne t aggia vist a primma vota, a capa mij l'anna mannat a chi l'ha visto.",
+    "Me arrevotate accussi assaje che m aggia scurdat pure o nomme mijo, ma nun me ne fott pecché ij voglio essere chiammat sul \"amo\" addu te.",
+    "Sije bella comme 'o viennerì 'e sera doppe 'na semmana 'e merd.",
+    "Quanno nun te tocco te vec, quanno nun te vec te chiamm, quanno nun te chiamm te penz, quanno nun te penz significa ca so muort.",
   ];
 
   const generaComplimento = () => {
@@ -126,10 +231,10 @@ export default function Home() {
     setTimeout(() => {
       setShowPopup2(false);
       setPopup2Exiting(false);
-      setShowPrime(true);
-      // Salva il primo accesso
-      localStorage.setItem('ricciolinoPrimeAccess', 'true');
-      setHasFirstAccess(true);
+      // Mostra il primo captcha invece di andare direttamente a Prime
+      setShowCaptcha(true);
+      setCurrentCaptcha(0);
+      setCaptchaError(false);
     }, 300);
   };
 
@@ -254,13 +359,20 @@ export default function Home() {
 
             {/* Foto  */}
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-pink-800 to-purple-900">
-              {/* Placeholder */}
+              {/* Foto principale */}
               <Image
-                src="/foto.jpg"
+                src="/images/galleria/1.jpg"
                 alt="La nostra foto"
                 fill
                 className="object-cover"
                 priority
+              />
+              {/* Foto sovrapposta */}
+              <Image
+                src="/foto.jpg"
+                alt=""
+                fill
+                className="object-cover opacity-20"
               />
             </div>
           </div>
@@ -272,7 +384,7 @@ export default function Home() {
         </p>
 
         {/* Disclaimer */}
-        <p className="text-xs text-purple-300/50 text-center max-w-sm px-4 mt-4">
+        <p className="text-sm text-purple-300/50 text-center max-w-sm px-4 mt-4">
           Cliccando sul pulsante sottostante accetti le politiche aziendali sul possesso delle Roscette e i Termini e Condizioni d&apos;Uso del mio cuore.
         </p>
 
@@ -353,6 +465,123 @@ export default function Home() {
             >
               Ho liberato Bossetti, è qui con me ora.<br />(#FreeBoffetti)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Popup Captcha */}
+      {showCaptcha && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-purple-500/30 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl shadow-purple-500/20 popup-enter">
+            {/* Header captcha */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✓</span>
+              </div>
+              <span className="text-purple-200 font-semibold">Verifica di sicurezza</span>
+              <span className="text-purple-400 text-sm ml-auto">{currentCaptcha + 1}/3</span>
+            </div>
+
+            {/* Domanda */}
+            <p className="text-white text-center mb-4 font-medium">
+              {captchaData[currentCaptcha].question}
+            </p>
+
+            {/* Griglia 3x3 */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {captchaData[currentCaptcha].items.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleCaptchaClick(index)}
+                  className={`aspect-square bg-[#2a2a4e] hover:bg-[#3a3a5e] border-2 rounded-lg flex items-center justify-center text-4xl transition-all duration-200 hover:scale-105 cursor-pointer overflow-hidden ${selectedCaptchaItems.includes(index) ? 'border-green-500 ring-2 ring-green-500/50' : 'border-purple-500/20'}`}
+                >
+                  {captchaData[currentCaptcha].type === "images" ? (
+                    <img src={item} alt="" className="w-full h-full object-cover object-top" />
+                  ) : (
+                    item
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Contatore selezioni */}
+            {selectedCaptchaItems.length > 0 && (
+              <p className="text-green-400 text-center text-sm mb-2">
+                {selectedCaptchaItems.length}/{captchaData[currentCaptcha].correctIndex.length}
+              </p>
+            )}
+
+            {/* Messaggio errore */}
+            {captchaError && (
+              <p className="text-red-400 text-center text-sm mb-2">
+                Risposta errata. Riprova!
+              </p>
+            )}
+
+            {/* Footer */}
+            <p className="text-purple-400/60 text-sm text-center">
+              Dimostra di non essere un robot 🤖
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Popup Scarcerazione Bossetti */}
+      {showScarcerazione && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-purple-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-purple-500/20 popup-enter">
+            {!scarcerazioneComplete ? (
+              <>
+                {/* Titolo */}
+                <h2 className="text-2xl font-bold text-white text-center mb-4">
+                  Attendere
+                </h2>
+
+                {/* Sottotitolo */}
+                <p className="text-purple-300 text-center mb-6">
+                  Scarcerazione di Bossetti in corso...
+                </p>
+
+                {/* Barra di caricamento */}
+                <div className="w-full bg-purple-900/50 rounded-full h-4 mb-2">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-100"
+                    style={{ width: `${scarcerazioneProgress}%` }}
+                  />
+                </div>
+
+                {/* Percentuale */}
+                <p className="text-purple-400 text-center text-sm">
+                  {scarcerazioneProgress}%
+                </p>
+              </>
+            ) : (
+              <>
+                {/* Messaggio completato */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <span className="text-4xl">✓</span>
+                  </div>
+                </div>
+
+                <p className="text-purple-200 text-center mb-6 text-lg">
+                  Bossetti è finalmente in libertà, ora il mondo è un po&apos; più giusto.
+                </p>
+
+                {/* Pulsante Continua */}
+                <button
+                  onClick={() => {
+                    setShowScarcerazione(false);
+                    setShowPrime(true);
+                    localStorage.setItem('ricciolinoPrimeAccess', 'true');
+                    setHasFirstAccess(true);
+                  }}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 rounded-full text-white font-semibold hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/30 cursor-pointer"
+                >
+                  Continua
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -621,39 +850,39 @@ export default function Home() {
 
       {/* Modal Galleria Completa */}
       {showFullGallery && (
-        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm overflow-y-auto flex justify-center">
-          <div className="w-full max-w-lg">
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black to-transparent">
-              <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400">
-                I nostri ricordi
-              </h2>
-              <button
-                onClick={() => setShowFullGallery(false)}
-                className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm flex flex-col">
+          {/* Header fisso */}
+          <div className="flex items-center justify-between p-4 bg-black/95 border-b border-purple-500/20 flex-shrink-0">
+            <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400">
+              I nostri ricordi
+            </h2>
+            <button
+              onClick={() => setShowFullGallery(false)}
+              className="p-2 rounded-full bg-purple-900/50 border border-purple-500/30 text-purple-300 hover:text-pink-400 hover:border-pink-500/50 transition-all cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-            {/* Griglia foto */}
-            <div className="grid grid-cols-2 gap-2 p-2 pb-8">
-            {galleryPhotos.map((photo, index) => (
-              <div
-                key={index}
-                onClick={() => setEnlargedPhoto(photo)}
-                className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-purple-500/20 hover:border-pink-500/50"
-              >
-                <Image
-                  src={photo}
-                  alt={`Foto ${index + 1}`}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            ))}
+          {/* Griglia foto scrollabile */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2 p-2 pb-8 max-w-lg mx-auto">
+              {galleryPhotos.map((photo, index) => (
+                <div
+                  key={index}
+                  onClick={() => setEnlargedPhoto(photo)}
+                  className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-purple-500/20 hover:border-pink-500/50"
+                >
+                  <Image
+                    src={photo}
+                    alt={`Foto ${index + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -846,7 +1075,7 @@ export default function Home() {
             </button>
 
             {/* Badge Prime */}
-            <div className="flex items-center gap-3 bg-gradient-to-r from-purple-600 to-pink-500 px-6 py-2 rounded-full">
+            <div className="flex items-center gap-3 bg-gradient-to-r from-purple-600 to-rose-400 px-6 py-2 rounded-full">
               <span className="text-2xl">👑</span>
               <span className="text-white font-bold text-xl">RICCIOLINO PRIME</span>
             </div>
@@ -889,7 +1118,7 @@ export default function Home() {
 
             {/* Galleria Foto */}
             {galleryPhotos.length > 0 && (
-              <div className="bg-gradient-to-br from-[#1a1a2e]/80 to-[#16213e]/80 border border-pink-500/30 rounded-2xl p-6 backdrop-blur-sm w-full max-w-lg">
+              <div className="bg-gradient-to-br from-[#1a1a2e]/80 to-[#16213e]/80 border border-pink-500/30 rounded-2xl p-6 backdrop-blur-sm w-full">
                 <p className="text-purple-200 text-center text-lg mb-4">I nostri ricordi</p>
 
                 {/* Container foto - cliccabile per ingrandire, swipe per scorrere */}
@@ -898,7 +1127,7 @@ export default function Home() {
                   onTouchStart={onTouchStart}
                   onTouchMove={onTouchMove}
                   onTouchEnd={onTouchEnd}
-                  className="relative w-full aspect-square max-w-sm mx-auto rounded-xl overflow-hidden border-2 border-purple-500/30 cursor-pointer hover:border-pink-500/50 transition-all touch-pan-y"
+                  className="relative w-full aspect-square mx-auto rounded-xl overflow-hidden border-2 border-purple-500/30 cursor-pointer hover:border-pink-500/50 transition-all touch-pan-y"
                 >
                   <div key={currentPhotoIndex} className="absolute inset-0 gallery-slide">
                     <Image
@@ -932,19 +1161,43 @@ export default function Home() {
                       </svg>
                     </button>
 
-                    {/* Indicatori */}
-                    <div className="flex gap-2">
-                      {galleryPhotos.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentPhotoIndex(index)}
-                          className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
-                            index === currentPhotoIndex
-                              ? 'bg-pink-500 w-4'
-                              : 'bg-purple-500/50 hover:bg-purple-400'
-                          }`}
-                        />
-                      ))}
+                    {/* Indicatori - max 5 visibili */}
+                    <div className="flex gap-2 items-center">
+                      {(() => {
+                        const maxDots = 5;
+                        const total = galleryPhotos.length;
+                        if (total <= maxDots) {
+                          return galleryPhotos.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setCurrentPhotoIndex(index)}
+                              className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                                index === currentPhotoIndex
+                                  ? 'bg-pink-500 w-4'
+                                  : 'bg-purple-500/50 hover:bg-purple-400'
+                              }`}
+                            />
+                          ));
+                        }
+                        // Calcola range di 5 pallini centrati sulla foto corrente
+                        let start = Math.max(0, currentPhotoIndex - 2);
+                        let end = start + maxDots;
+                        if (end > total) {
+                          end = total;
+                          start = Math.max(0, end - maxDots);
+                        }
+                        return Array.from({ length: end - start }, (_, i) => start + i).map(index => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentPhotoIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
+                              index === currentPhotoIndex
+                                ? 'bg-pink-500 w-4'
+                                : 'bg-purple-500/50 hover:bg-purple-400'
+                            }`}
+                          />
+                        ));
+                      })()}
                     </div>
 
                     <button
@@ -993,7 +1246,7 @@ export default function Home() {
                   onClick={generaComplimento}
                   className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-cyan-600 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/30 cursor-pointer"
                 >
-                  Genera Complimento AI
+                  Genera Complimento Napoletano
                 </button>
                 <button
                   onClick={apriMoneta}
@@ -1026,13 +1279,13 @@ export default function Home() {
 
               {showBenefits && (
                 <div className="p-3 pt-0">
-                  <div className="grid grid-cols-2 gap-2 auto-rows-auto">
+                  <div className="grid grid-cols-2 gap-2">
                     {/* Prima parte: Bacino, Spupazzamento, Sushi */}
                     {whatsappMessages.slice(0, 3).map((item, index) => (
                       <button
                         key={index}
                         onClick={() => inviaRichiesta(item.message)}
-                        className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                        className="px-2 py-3 h-[70px] flex items-center justify-center text-center rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-rose-400 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
                       >
                         {item.label}
                       </button>
@@ -1040,7 +1293,7 @@ export default function Home() {
                     {/* Pulsante Regalino - apre popup con input */}
                     <button
                       onClick={() => setShowRegalino(true)}
-                      className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                      className="px-2 py-3 h-[70px] flex items-center justify-center text-center rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-rose-400 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
                     >
                       Richiedi Regalino
                     </button>
@@ -1049,7 +1302,7 @@ export default function Home() {
                       <button
                         key={index + 3}
                         onClick={() => inviaRichiesta(item.message)}
-                        className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                        className="px-2 py-3 h-[70px] flex items-center justify-center text-center rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-rose-400 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
                       >
                         {item.label}
                       </button>
@@ -1057,14 +1310,14 @@ export default function Home() {
                     {/* Pulsante Chiedi scusa - mostra popup invece di WhatsApp */}
                     <button
                       onClick={() => { sendNotification('Roscetta ha provato a chiedere scusa... HAHAHA'); setShowScusaPopup(true); }}
-                      className="px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                      className="px-2 py-3 h-[70px] flex items-center justify-center text-center rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-rose-400 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
                     >
                       Chiedi Scusa
                     </button>
                     {/* Pulsante Messaggio Personalizzato - larghezza piena */}
                     <button
                       onClick={() => setShowMessaggioPersonalizzato(true)}
-                      className="col-span-2 px-2 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
+                      className="col-span-2 px-2 py-3 h-[70px] flex items-center justify-center text-center rounded-xl font-semibold transition-all duration-300 hover:scale-105 bg-gradient-to-r from-purple-600 to-rose-400 text-white hover:shadow-lg hover:shadow-purple-500/30 cursor-pointer"
                     >
                       Messaggio Personalizzato
                     </button>
