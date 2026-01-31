@@ -297,6 +297,38 @@ export default function Home() {
     }))
   );
 
+  // Scroll lock quando popup aperti (fix iOS scroll bugs)
+  useEffect(() => {
+    const hasOpenPopup = showLettera || showComplimentPopup || showCoinFlip ||
+      showScusaPopup || showDisdetta || showMessaggioPersonalizzato ||
+      showRegalino || showRichiesta || showFullGallery || enlargedPhoto;
+
+    if (hasOpenPopup) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${window.scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [showLettera, showComplimentPopup, showCoinFlip, showScusaPopup,
+      showDisdetta, showMessaggioPersonalizzato, showRegalino, showRichiesta,
+      showFullGallery, enlargedPhoto]);
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#1a1a2e] to-[#0a0a1a]">
       {/* Stelle di sfondo - limitate per performance */}
@@ -569,8 +601,8 @@ export default function Home() {
 
       {/* Popup Chiedi Scusa */}
       {showScusaPopup && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-red-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-red-500/20 popup-enter">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-red-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-red-500/20 popup-enter popup-stable">
             {/* Icona errore */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -602,8 +634,8 @@ export default function Home() {
 
       {/* Popup Conferma Disdetta */}
       {showDisdetta && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-red-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-red-500/20 popup-enter">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-red-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-red-500/20 popup-enter popup-stable">
             {/* Icona */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -634,8 +666,11 @@ export default function Home() {
               </button>
               <button
                 onClick={() => {
+                  sendNotification("Amo dobbiamo parlare... non sei tu davvero, sono io...");
+                  localStorage.removeItem('ricciolinoPrimeAccess');
+                  setHasFirstAccess(false);
                   setShowDisdetta(false);
-                  inviaRichiesta("Amo dobbiamo parlare... non sei tu davvero, sono io...");
+                  setShowPrime(false);
                 }}
                 className="w-full px-6 py-3 bg-transparent border border-red-500/50 rounded-full text-red-400 font-semibold hover:bg-red-500/10 transition-all duration-300 cursor-pointer text-sm"
               >
@@ -648,8 +683,8 @@ export default function Home() {
 
       {/* Popup Messaggio Personalizzato */}
       {showMessaggioPersonalizzato && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-pink-500/20 popup-enter">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-pink-500/20 popup-enter popup-stable">
             {/* Icona */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-pink-500/20 flex items-center justify-center">
@@ -692,8 +727,8 @@ export default function Home() {
 
       {/* Popup Regalino */}
       {showRegalino && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-pink-500/20 popup-enter">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-pink-500/20 popup-enter popup-stable">
             {/* Icona regalo */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-pink-500/20 flex items-center justify-center">
@@ -739,8 +774,8 @@ export default function Home() {
 
       {/* Popup Richiesta Inviata */}
       {showRichiesta && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-green-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-green-500/20 popup-enter">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-green-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-green-500/20 popup-enter popup-stable">
             {/* Icona successo */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
@@ -775,11 +810,11 @@ export default function Home() {
       {/* Popup Lettera d'Amore */}
       {showLettera && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm popup-backdrop-enter p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm popup-backdrop-enter p-4 popup-stable popup-container"
           onClick={() => setShowLettera(false)}
         >
           <div
-            className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl shadow-pink-500/20 popup-enter"
+            className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-pink-500/30 rounded-2xl p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl shadow-pink-500/20 popup-enter popup-stable"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Pulsante chiudi */}
@@ -874,7 +909,7 @@ export default function Home() {
 
       {/* Modal Galleria Completa */}
       {showFullGallery && (
-        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm flex flex-col">
+        <div className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-sm flex flex-col popup-stable popup-container">
           {/* Header fisso */}
           <div className="flex items-center justify-between p-4 bg-black/95 border-b border-purple-500/20 flex-shrink-0">
             <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-purple-400">
@@ -931,7 +966,7 @@ export default function Home() {
       {/* Modal Foto Ingrandita */}
       {enlargedPhoto && (
         <div
-          className="fixed inset-0 z-[90] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-[90] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer popup-stable popup-container"
           onClick={() => setEnlargedPhoto(null)}
         >
           {/* Pulsante chiudi */}
@@ -959,8 +994,8 @@ export default function Home() {
 
       {/* Popup Complimento AI */}
       {showComplimentPopup && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-cyan-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-cyan-500/20 popup-enter">
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4 popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-cyan-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-cyan-500/20 popup-enter popup-stable">
             {/* Icona */}
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center">
@@ -999,8 +1034,8 @@ export default function Home() {
 
       {/* Popup Moneta delle Decisioni */}
       {showCoinFlip && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4">
-          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-yellow-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-yellow-500/20 popup-enter">
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm popup-backdrop-enter p-4 popup-stable popup-container">
+          <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-yellow-500/30 rounded-2xl p-8 max-w-md mx-4 shadow-2xl shadow-yellow-500/20 popup-enter popup-stable">
             {/* Titolo */}
             <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 text-center mb-2">
               Moneta delle Decisioni
@@ -1310,7 +1345,7 @@ export default function Home() {
             </div>
 
             {/* Pannello Benefici - Chiudibile */}
-            <div className="w-full bg-gradient-to-br from-[#1a1a2e]/90 to-[#16213e]/90 border border-purple-500/30 rounded-2xl mt-4 backdrop-blur-sm flex-shrink-0 overflow-hidden">
+            <div className="w-full bg-gradient-to-br from-[#1a1a2e]/90 to-[#16213e]/90 border border-purple-500/30 rounded-2xl mt-4 backdrop-blur-sm flex-shrink-0 overflow-hidden button-box-stable">
               <button
                 onClick={() => setShowBenefits(!showBenefits)}
                 className="w-full p-3 flex items-center justify-between cursor-pointer hover:bg-purple-500/10 transition-colors"
@@ -1374,7 +1409,7 @@ export default function Home() {
                       Messaggio Personalizzato
                     </button>
                     {/* Pulsante Emergenza SOS - sempre visibile */}
-                    <div className="col-span-2 flex flex-col items-center gap-3 mt-4 flex-shrink-0 min-h-[120px]">
+                    <div className="col-span-2 flex flex-col items-center gap-3 mt-4 flex-shrink-0 min-h-[120px] button-box-stable">
                       <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-full flex-shrink-0">
                         <span className="text-red-400 animate-pulse">⚠️</span>
                         <p className="text-sm font-medium text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400">

@@ -200,3 +200,27 @@ body {
     backdrop-filter: blur(4px) !important;
   }
 }
+
+/* Fix iOS popup stability */
+.popup-stable {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Fix iOS overscroll su popup */
+.popup-container {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Isolamento stacking context per box pulsanti */
+.button-box-stable {
+  isolation: isolate;
+  contain: layout style;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
