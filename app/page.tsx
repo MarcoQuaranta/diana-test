@@ -34,6 +34,65 @@ export default function Home() {
   const [isFlipping, setIsFlipping] = useState(false);
   const [coinReason, setCoinReason] = useState("");
 
+  // Foto ricordo
+  const [isTakingPhoto, setIsTakingPhoto] = useState(false);
+  const [photoTaken, setPhotoTaken] = useState(false);
+
+  const scattaFotoRicordo = async () => {
+    setIsTakingPhoto(true);
+    try {
+      // Accedi alla fotocamera frontale
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' }
+      });
+
+      // Crea video element nascosto
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      await video.play();
+
+      // Aspetta un attimo per far stabilizzare il video
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Crea canvas per catturare il frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        // Specchia l'immagine orizzontalmente (selfie style)
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0);
+
+        // Converti in blob e scarica
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `foto-ricordo-san-valentino-${Date.now()}.jpg`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }, 'image/jpeg', 0.9);
+      }
+
+      // Ferma lo stream
+      stream.getTracks().forEach(track => track.stop());
+
+      setPhotoTaken(true);
+      setTimeout(() => setPhotoTaken(false), 3000);
+    } catch (error) {
+      console.error('Errore fotocamera:', error);
+      alert('Non riesco ad accedere alla fotocamera. Controlla i permessi!');
+    } finally {
+      setIsTakingPhoto(false);
+    }
+  };
+
   // Captcha states
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [currentCaptcha, setCurrentCaptcha] = useState(0);
@@ -266,6 +325,47 @@ export default function Home() {
   // Timer da quando state insieme
   const [timeTogether, setTimeTogether] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
+  // Countdown San Valentino
+  const [valentineCountdown, setValentineCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  // Combinazione pacco San Valentino
+  const [giftCode, setGiftCode] = useState([0, 0, 0]);
+  const [giftUnlocked, setGiftUnlocked] = useState(false);
+  const [giftShaking, setGiftShaking] = useState(false);
+  const [showValentineSpecial, setShowValentineSpecial] = useState(false);
+
+  const updateGiftDigit = (index: number, direction: 'up' | 'down') => {
+    const newCode = [...giftCode];
+    if (direction === 'up') {
+      newCode[index] = (newCode[index] + 1) % 10;
+    } else {
+      newCode[index] = (newCode[index] - 1 + 10) % 10;
+    }
+    setGiftCode(newCode);
+
+    // Controlla se la combinazione è corretta (567)
+    if (newCode[0] === 5 && newCode[1] === 6 && newCode[2] === 7) {
+      setGiftUnlocked(true);
+      // Apri lo speciale dopo un breve ritardo
+      setTimeout(() => {
+        setShowValentineSpecial(true);
+      }, 500);
+    }
+  };
+
+  const tryUnlock = () => {
+    if (giftCode[0] === 5 && giftCode[1] === 6 && giftCode[2] === 7) {
+      setGiftUnlocked(true);
+      setTimeout(() => {
+        setShowValentineSpecial(true);
+      }, 500);
+    } else {
+      setGiftShaking(true);
+      setTimeout(() => setGiftShaking(false), 500);
+    }
+  };
+
+
   useEffect(() => {
     const startDate = new Date("2025-12-26T12:25:00");
 
@@ -283,6 +383,33 @@ export default function Home() {
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Countdown San Valentino
+  useEffect(() => {
+    const valentineDate = new Date("2026-02-14T00:00:00");
+
+    const updateValentineCountdown = () => {
+      const now = new Date();
+      const diff = valentineDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setValentineCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setValentineCountdown({ days, hours, minutes, seconds });
+    };
+
+    updateValentineCountdown();
+    const interval = setInterval(updateValentineCountdown, 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -910,6 +1037,103 @@ export default function Home() {
         </div>
       )}
 
+      {/* Popup Speciale San Valentino */}
+      {showValentineSpecial && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-red-950 via-pink-950 to-red-950 overflow-y-auto">
+          {/* Cuori fluttuanti di sfondo */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute text-red-500/20 animate-float"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  fontSize: `${Math.random() * 30 + 20}px`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${Math.random() * 10 + 10}s`,
+                }}
+              >
+                ❤️
+              </div>
+            ))}
+          </div>
+
+          {/* Pulsante chiudi */}
+          <button
+            onClick={() => setShowValentineSpecial(false)}
+            className="fixed top-6 right-6 z-[110] p-2 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 text-white hover:text-pink-400 hover:border-pink-400/50 transition-all cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Contenuto */}
+          <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
+            {/* Icona cuore grande */}
+            <div className="text-6xl mb-4 animate-pulse">
+              💝
+            </div>
+
+            {/* Titolo */}
+            <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-300 via-red-400 to-pink-300 text-center mb-2">
+              Speciale San Valentino
+            </h1>
+
+            {/* Sottotitolo */}
+            <p className="text-base text-pink-200/70 text-center mb-8 max-w-md">
+              Scegli un regalo da aprire
+            </p>
+
+            {/* Box con 5 mini regali */}
+            <div className="grid grid-cols-3 gap-4 max-w-md mx-4">
+              {/* Regalo 1 */}
+              <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl p-4 flex flex-col items-center justify-center aspect-square cursor-pointer hover:scale-105 transition-all shadow-lg hover:shadow-red-500/50 border-2 border-red-400/30">
+                <span className="text-4xl mb-2">🎁</span>
+                <span className="text-white/80 text-xs font-medium">Regalo 1</span>
+              </div>
+
+              {/* Regalo 2 */}
+              <div className="bg-gradient-to-br from-pink-500 to-pink-700 rounded-2xl p-4 flex flex-col items-center justify-center aspect-square cursor-pointer hover:scale-105 transition-all shadow-lg hover:shadow-pink-500/50 border-2 border-pink-400/30">
+                <span className="text-4xl mb-2">🎁</span>
+                <span className="text-white/80 text-xs font-medium">Regalo 2</span>
+              </div>
+
+              {/* Regalo 3 */}
+              <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-4 flex flex-col items-center justify-center aspect-square cursor-pointer hover:scale-105 transition-all shadow-lg hover:shadow-purple-500/50 border-2 border-purple-400/30">
+                <span className="text-4xl mb-2">🎁</span>
+                <span className="text-white/80 text-xs font-medium">Regalo 3</span>
+              </div>
+
+              {/* Regalo 4 */}
+              <div className="col-span-3 grid grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl p-4 flex flex-col items-center justify-center aspect-square cursor-pointer hover:scale-105 transition-all shadow-lg hover:shadow-rose-500/50 border-2 border-rose-400/30">
+                  <span className="text-4xl mb-2">🎁</span>
+                  <span className="text-white/80 text-xs font-medium">Regalo 4</span>
+                </div>
+
+                {/* Regalo 5 */}
+                <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl p-4 flex flex-col items-center justify-center aspect-square cursor-pointer hover:scale-105 transition-all shadow-lg hover:shadow-amber-500/50 border-2 border-amber-400/30">
+                  <span className="text-4xl mb-2">🎁</span>
+                  <span className="text-white/80 text-xs font-medium">Regalo 5</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Pulsante Foto Ricordo */}
+            <button
+              onClick={scattaFotoRicordo}
+              disabled={isTakingPhoto}
+              className="mt-8 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+            >
+              <span className="text-xl">📸</span>
+              {isTakingPhoto ? 'Scatto in corso...' : photoTaken ? '✓ Foto salvata!' : 'Scatta foto ricordo'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Effetto nebulosa di sfondo */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-pink-600/20 rounded-full blur-3xl" />
@@ -1195,6 +1419,93 @@ export default function Home() {
                 <div className="flex flex-col items-center bg-purple-900/50 rounded-xl py-3">
                   <span className="text-2xl md:text-4xl font-bold text-pink-400">{timeTogether.seconds}</span>
                   <span className="text-xs text-purple-300">secondi</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Speciale San Valentino - Pacco Regalo */}
+            <div className="relative w-full">
+              {/* Container con immagine di sfondo */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-red-900/30">
+                {/* Immagine di sfondo */}
+                <Image
+                  src="/images/valentine-gift.jpg"
+                  alt="Pacco regalo San Valentino"
+                  width={450}
+                  height={225}
+                  className="w-full h-auto"
+                  priority
+                />
+
+                {/* Overlay scuro */}
+                <div className="absolute inset-0 bg-black/50"></div>
+
+                {/* Contenuto sovrapposto */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                  {/* Titolo */}
+                  <h2 className="text-xl md:text-2xl font-bold text-white text-center drop-shadow-lg">
+                    Speciale San Valentino
+                  </h2>
+
+                  {/* Coming soon */}
+                  <p className="text-sm text-white/90 text-center italic drop-shadow mt-1">
+                    Coming soon...
+                  </p>
+
+                  {/* Countdown elegante */}
+                  <div className="flex items-center justify-center gap-1 text-white font-light tracking-wide drop-shadow mt-2">
+                    <span className="text-base font-semibold">{valentineCountdown.days}</span>
+                    <span className="text-[10px] opacity-70">g</span>
+                    <span className="opacity-50 mx-1">·</span>
+                    <span className="text-base font-semibold">{String(valentineCountdown.hours).padStart(2, '0')}</span>
+                    <span className="text-[10px] opacity-70">h</span>
+                    <span className="opacity-50 mx-1">·</span>
+                    <span className="text-base font-semibold">{String(valentineCountdown.minutes).padStart(2, '0')}</span>
+                    <span className="text-[10px] opacity-70">m</span>
+                    <span className="opacity-50 mx-1">·</span>
+                    <span className="text-base font-semibold">{String(valentineCountdown.seconds).padStart(2, '0')}</span>
+                    <span className="text-[10px] opacity-70">s</span>
+                  </div>
+
+                  {/* Lucchetto a combinazione */}
+                  <div className={`flex flex-col items-center mt-3 ${giftShaking ? 'animate-shake' : ''}`}>
+                    <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-2 rounded-xl border border-white/20">
+                      {/* Icona lucchetto */}
+                      <div className="text-lg mr-1">
+                        {giftUnlocked ? '🔓' : '🔒'}
+                      </div>
+
+                      {/* 3 rotelle */}
+                      {[0, 1, 2].map((index) => (
+                        <div key={index} className="flex flex-col items-center">
+                          <button
+                            onClick={() => updateGiftDigit(index, 'up')}
+                            disabled={giftUnlocked}
+                            className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-[10px] px-1.5 py-0.5"
+                          >
+                            ▲
+                          </button>
+                          <div className="w-6 h-7 bg-white/20 rounded flex items-center justify-center border border-white/40">
+                            <span className={`text-base font-mono font-bold ${giftUnlocked ? 'text-green-400' : 'text-white'}`}>
+                              {giftCode[index]}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => updateGiftDigit(index, 'down')}
+                            disabled={giftUnlocked}
+                            className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-[10px] px-1.5 py-0.5"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Messaggio stato */}
+                    <p className={`text-[10px] mt-1 drop-shadow ${giftUnlocked ? 'text-green-300 font-medium' : 'text-white/70'}`}>
+                      {giftUnlocked ? '✨ Sbloccato! Torna il 14 febbraio ✨' : 'Inserisci la combinazione'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
