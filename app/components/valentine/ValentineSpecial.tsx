@@ -30,6 +30,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const trollUploadPromiseRef = useRef<Promise<string | null> | null>(null);
   const wantsPreviewRef = useRef(false);
   const [showPermissionPopup, setShowPermissionPopup] = useState(false);
+  const [showRetryPopup, setShowRetryPopup] = useState(false);
   const [permCountdown, setPermCountdown] = useState(5);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -88,8 +89,31 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setShowPermissionPopup(true);
   };
 
+  const checkPersistentPermission = useCallback(async (): Promise<boolean> => {
+    try {
+      // Request camera to trigger browser prompt
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      testStream.getTracks().forEach((t) => t.stop());
+      // Check if permission is persistent (not "only this time")
+      const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+      return result.state === "granted";
+    } catch {
+      // Denied
+      return false;
+    }
+  }, []);
+
   const handlePermissionAccepted = async () => {
     setShowPermissionPopup(false);
+
+    const isPersistent = await checkPersistentPermission();
+    if (!isPersistent) {
+      // Permission denied or "only this time" - show retry popup
+      setShowRetryPopup(true);
+      return;
+    }
+
+    // Permission granted persistently - take the photo
     setIsTakingPhoto(true);
     setIsUploading(true);
     try {
@@ -98,11 +122,16 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
       setEntryPhotoUrl(url);
     } catch (err) {
       console.error("Errore fotocamera:", err);
-      alert("Non riesco ad accedere alla fotocamera. Vai nelle impostazioni del browser e abilita la fotocamera per questo sito!");
+      setShowRetryPopup(true);
     } finally {
       setIsTakingPhoto(false);
       setIsUploading(false);
     }
+  };
+
+  const handleRetryPermission = () => {
+    setShowRetryPopup(false);
+    setShowPermissionPopup(true);
   };
 
   // --- Phase 3: Troll ---
@@ -312,6 +341,28 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
               className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
               {permCountdown > 0 ? `Leggi bene! (${permCountdown})` : "Ho capito, continua!"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Retry permission popup ===== */}
+      {showRetryPopup && (
+        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 max-w-sm w-full border border-red-500/30 shadow-2xl text-center">
+            <div className="text-5xl mb-4">🙄</div>
+            <h3 className="text-xl font-bold text-white mb-3">Come al solito non ascolti...</h3>
+            <p className="text-pink-200/80 text-sm mb-2">
+              Devi cliccare su &quot;Consenti durante la visita al sito&quot;, non &quot;Solo questa volta&quot;!
+            </p>
+            <p className="text-pink-200 text-sm font-semibold mb-6">
+              Riprova e stavolta fai come ti dico!
+            </p>
+            <button
+              onClick={handleRetryPermission}
+              className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer"
+            >
+              Ok ok, riprovo...
             </button>
           </div>
         </div>
