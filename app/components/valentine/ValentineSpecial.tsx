@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { uploadToCloudinary } from "@/app/lib/cloudinary";
 
 interface ValentineSpecialProps {
@@ -27,6 +27,26 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
   const [showPermissionPopup, setShowPermissionPopup] = useState(false);
+  const [permCountdown, setPermCountdown] = useState(5);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (showPermissionPopup) {
+      setPermCountdown(5);
+      countdownRef.current = setInterval(() => {
+        setPermCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [showPermissionPopup]);
 
   const capturePhoto = useCallback(async (): Promise<Blob> => {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -261,9 +281,10 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
             </p>
             <button
               onClick={handlePermissionAccepted}
-              className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer"
+              disabled={permCountdown > 0}
+              className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
-              Ho capito, continua!
+              {permCountdown > 0 ? `Leggi bene! (${permCountdown})` : "Ho capito, continua!"}
             </button>
           </div>
         </div>
