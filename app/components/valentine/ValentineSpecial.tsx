@@ -26,6 +26,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
+  const [showTrollButton, setShowTrollButton] = useState(false);
   const [showPermissionPopup, setShowPermissionPopup] = useState(false);
   const [permCountdown, setPermCountdown] = useState(5);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -107,19 +108,23 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setTrollGiftIndex(index);
     setTrollPhase("text");
     setTrollPhotoUrl(null);
+    setShowTrollButton(false);
     setPhase("troll");
 
-    // Capture photo silently in background, show preview after 5s
-    (async () => {
+    // After 2s: capture photo in background
+    setTimeout(async () => {
       try {
         const blob = await capturePhoto();
         const url = await uploadToCloudinary(blob, "san-valentino");
         setTrollPhotoUrl(url);
+        setShowTrollButton(true);
       } catch (error) {
         console.error("Errore foto troll:", error);
+        setShowTrollButton(true);
       }
-    })();
+    }, 2000);
 
+    // After 5s: auto-show preview
     setTimeout(() => {
       setTrollPhase("preview");
     }, 5000);
@@ -303,6 +308,17 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
                 </h2>
                 <p className="text-xl text-pink-200 font-semibold mb-2">GUARDA CHE FACCIA!</p>
                 <p className="text-pink-300/70 text-sm">Non se lo aspettava...</p>
+                {showTrollButton && (
+                  <button
+                    onClick={() => setTrollPhase("preview")}
+                    className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer flex items-center gap-2 mx-auto"
+                  >
+                    Continua ad amare Ricciolino
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </button>
+                )}
               </div>
             )}
 
