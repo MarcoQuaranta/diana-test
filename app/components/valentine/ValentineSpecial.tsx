@@ -27,6 +27,8 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
   const [showTrollButton, setShowTrollButton] = useState(false);
+  const trollUploadPromiseRef = useRef<Promise<string | null> | null>(null);
+  const wantsPreviewRef = useRef(false);
   const [showPermissionPopup, setShowPermissionPopup] = useState(false);
   const [permCountdown, setPermCountdown] = useState(5);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -104,30 +106,49 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   };
 
   // --- Phase 3: Troll ---
+  const goToPreview = useCallback(async () => {
+    if (!trollUploadPromiseRef.current) return;
+    wantsPreviewRef.current = true;
+    const url = await trollUploadPromiseRef.current;
+    if (url) setTrollPhotoUrl(url);
+    setTrollPhase("preview");
+  }, []);
+
   const handleGiftClick = (index: number) => {
     setTrollGiftIndex(index);
     setTrollPhase("text");
     setTrollPhotoUrl(null);
     setShowTrollButton(false);
+    wantsPreviewRef.current = false;
+    trollUploadPromiseRef.current = null;
     setPhase("troll");
 
-    // After 2s: capture photo in background + show button
+    // After 2s: capture photo, show button when blob is ready
     setTimeout(() => {
-      setShowTrollButton(true);
-      (async () => {
+      const uploadPromise = (async (): Promise<string | null> => {
         try {
           const blob = await capturePhoto();
+          // Blob captured -> show button
+          setShowTrollButton(true);
           const url = await uploadToCloudinary(blob, "san-valentino");
-          setTrollPhotoUrl(url);
+          // If preview was already requested while uploading, go now
+          if (wantsPreviewRef.current) {
+            setTrollPhotoUrl(url);
+            setTrollPhase("preview");
+          }
+          return url;
         } catch (error) {
           console.error("Errore foto troll:", error);
+          setShowTrollButton(true);
+          return null;
         }
       })();
+      trollUploadPromiseRef.current = uploadPromise;
     }, 2000);
 
-    // After 5s: auto-show preview
+    // After 5s: auto-show preview (waits for upload)
     setTimeout(() => {
-      setTrollPhase("preview");
+      goToPreview();
     }, 5000);
   };
 
@@ -311,7 +332,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
                 <p className="text-pink-300/70 text-sm">Non se lo aspettava...</p>
                 {showTrollButton && (
                   <button
-                    onClick={() => setTrollPhase("preview")}
+                    onClick={goToPreview}
                     className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer flex items-center gap-2 mx-auto"
                   >
                     Continua ad amare Ricciolino
