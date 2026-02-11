@@ -114,13 +114,25 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     }
   };
 
-  const handleRetryPermission = () => {
+  const handleRetryPermission = async () => {
     setShowRetryPopup(false);
-    if (permBlocked) {
-      // Can't re-prompt, show instruction popup which tells them to go to settings
-      setShowPermissionPopup(true);
-    } else {
-      setShowPermissionPopup(true);
+    setIsTakingPhoto(true);
+    setIsUploading(true);
+    try {
+      const blob = await capturePhoto();
+      const url = await uploadToCloudinary(blob, "san-valentino");
+      setEntryPhotoUrl(url);
+    } catch {
+      try {
+        const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+        setPermBlocked(result.state === "denied");
+      } catch {
+        setPermBlocked(false);
+      }
+      setShowRetryPopup(true);
+    } finally {
+      setIsTakingPhoto(false);
+      setIsUploading(false);
     }
   };
 
@@ -348,13 +360,10 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
                   Hai bloccato la fotocamera! Per sbloccarla:
                 </p>
                 <p className="text-pink-200 text-sm font-semibold mb-2">
-                  1. Clicca sul lucchetto in alto a sinistra nella barra del browser
-                </p>
-                <p className="text-pink-200 text-sm font-semibold mb-2">
-                  2. Trova &quot;Fotocamera&quot; e metti &quot;Consenti&quot;
+                  1. Tocca il pulsante a sinistra del nome del sito nella barra del browser
                 </p>
                 <p className="text-pink-200 text-sm font-semibold mb-6">
-                  3. Ricarica la pagina
+                  2. Autorizza la fotocamera
                 </p>
               </>
             ) : (
@@ -371,7 +380,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
               onClick={handleRetryPermission}
               className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer"
             >
-              {permBlocked ? "Ho sbloccato, riprova!" : "Ok ok, riprovo..."}
+              {permBlocked ? "Fatto!" : "Ok ok, riprovo..."}
             </button>
           </div>
         </div>
