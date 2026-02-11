@@ -85,54 +85,75 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   }, []);
 
   // --- Phase 1: Permission check + photo ---
+
+  // On mount: check if we're back from a permission reload
+  useEffect(() => {
+    const pending = sessionStorage.getItem("permCheckPending");
+    if (pending) {
+      sessionStorage.removeItem("permCheckPending");
+      (async () => {
+        try {
+          const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+          if (result.state === "granted") {
+            // Persistent permission confirmed - take photo
+            setIsTakingPhoto(true);
+            setIsUploading(true);
+            try {
+              const blob = await capturePhoto();
+              const url = await uploadToCloudinary(blob, "san-valentino");
+              setEntryPhotoUrl(url);
+            } finally {
+              setIsTakingPhoto(false);
+              setIsUploading(false);
+            }
+          } else {
+            // Was "only this time" - show retry
+            setShowRetryPopup(true);
+          }
+        } catch {
+          setShowRetryPopup(true);
+        }
+      })();
+    }
+  }, [capturePhoto]);
+
   const handlePhotoButton = useCallback(async () => {
     try {
       const result = await navigator.permissions.query({ name: "camera" as PermissionName });
-      const askedBefore = localStorage.getItem("cameraPermAsked") === "true";
-
       if (result.state === "granted") {
-        // Permission is persistent - skip all popups, just take photo
+        // Already persistent - just take photo
         setIsTakingPhoto(true);
         setIsUploading(true);
         try {
           const blob = await capturePhoto();
           const url = await uploadToCloudinary(blob, "san-valentino");
           setEntryPhotoUrl(url);
-        } catch (err) {
-          console.error("Errore fotocamera:", err);
         } finally {
           setIsTakingPhoto(false);
           setIsUploading(false);
         }
-      } else if (result.state === "prompt" && askedBefore) {
-        // Asked before but state is prompt again = used "only this time" last time
-        setShowRetryPopup(true);
       } else {
-        // First time - show instruction popup
+        // Need to ask - show instruction popup
         setShowPermissionPopup(true);
       }
     } catch {
-      // permissions.query not supported - show instruction popup
       setShowPermissionPopup(true);
     }
   }, [capturePhoto]);
 
   const handlePermissionAccepted = async () => {
     setShowPermissionPopup(false);
-    localStorage.setItem("cameraPermAsked", "true");
-
-    setIsTakingPhoto(true);
-    setIsUploading(true);
     try {
-      const blob = await capturePhoto();
-      const url = await uploadToCloudinary(blob, "san-valentino");
-      setEntryPhotoUrl(url);
-    } catch (err) {
-      console.error("Errore fotocamera:", err);
-      alert("Non riesco ad accedere alla fotocamera. Controlla i permessi!");
-    } finally {
-      setIsTakingPhoto(false);
-      setIsUploading(false);
+      // Trigger browser permission prompt
+      const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      testStream.getTracks().forEach((t) => t.stop());
+      // Save flag and reload to verify persistent permission
+      sessionStorage.setItem("permCheckPending", "true");
+      sessionStorage.setItem("reopenValentine", "true");
+      window.location.reload();
+    } catch {
+      // Denied entirely
+      setShowRetryPopup(true);
     }
   };
 
