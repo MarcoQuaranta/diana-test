@@ -84,6 +84,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   }, []);
 
   const [showRetryPopup, setShowRetryPopup] = useState(false);
+  const [permBlocked, setPermBlocked] = useState(false);
 
   // --- Phase 1: Permission + photo ---
   const handlePhotoButton = () => {
@@ -99,7 +100,13 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
       const url = await uploadToCloudinary(blob, "san-valentino");
       setEntryPhotoUrl(url);
     } catch {
-      // Permission denied - show retry popup
+      // Check if permission is blocked or just dismissed
+      try {
+        const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+        setPermBlocked(result.state === "denied");
+      } catch {
+        setPermBlocked(false);
+      }
       setShowRetryPopup(true);
     } finally {
       setIsTakingPhoto(false);
@@ -109,7 +116,12 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
 
   const handleRetryPermission = () => {
     setShowRetryPopup(false);
-    setShowPermissionPopup(true);
+    if (permBlocked) {
+      // Can't re-prompt, show instruction popup which tells them to go to settings
+      setShowPermissionPopup(true);
+    } else {
+      setShowPermissionPopup(true);
+    }
   };
 
   // --- Phase 3: Troll ---
@@ -330,17 +342,36 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 max-w-sm w-full border border-red-500/30 shadow-2xl text-center">
             <div className="text-5xl mb-4">🙄</div>
             <h3 className="text-xl font-bold text-white mb-3">Come al solito non ascolti...</h3>
-            <p className="text-pink-200/80 text-sm mb-2">
-              Devi cliccare su &quot;Consenti durante la visita al sito&quot;, non &quot;Solo questa volta&quot;!
-            </p>
-            <p className="text-pink-200 text-sm font-semibold mb-6">
-              Riprova e stavolta fai come ti dico!
-            </p>
+            {permBlocked ? (
+              <>
+                <p className="text-pink-200/80 text-sm mb-2">
+                  Hai bloccato la fotocamera! Per sbloccarla:
+                </p>
+                <p className="text-pink-200 text-sm font-semibold mb-2">
+                  1. Clicca sul lucchetto in alto a sinistra nella barra del browser
+                </p>
+                <p className="text-pink-200 text-sm font-semibold mb-2">
+                  2. Trova &quot;Fotocamera&quot; e metti &quot;Consenti&quot;
+                </p>
+                <p className="text-pink-200 text-sm font-semibold mb-6">
+                  3. Ricarica la pagina
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-pink-200/80 text-sm mb-2">
+                  Devi cliccare su &quot;Consenti&quot;, non &quot;Non consentire&quot;!
+                </p>
+                <p className="text-pink-200 text-sm font-semibold mb-6">
+                  Senza fotocamera non si va avanti. Riprova!
+                </p>
+              </>
+            )}
             <button
               onClick={handleRetryPermission}
               className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer"
             >
-              Ok ok, riprovo...
+              {permBlocked ? "Ho sbloccato, riprova!" : "Ok ok, riprovo..."}
             </button>
           </div>
         </div>
