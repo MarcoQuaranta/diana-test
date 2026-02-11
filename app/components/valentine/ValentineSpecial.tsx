@@ -94,13 +94,39 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
       // Request camera to trigger browser prompt
       const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
       testStream.getTracks().forEach((t) => t.stop());
-      // Wait for browser to update permission state after stream release
-      await new Promise((r) => setTimeout(r, 1000));
-      // Check if permission is persistent (not "only this time")
-      const result = await navigator.permissions.query({ name: "camera" as PermissionName });
-      return result.state === "granted";
+
+      const permStatus = await navigator.permissions.query({ name: "camera" as PermissionName });
+
+      // If already not granted after stopping, it was denied
+      if (permStatus.state !== "granted") return false;
+
+      // Race: listen for state change vs 2s timeout
+      // "Only this time" will revert to "prompt" after stream stops
+      // "While visiting" stays "granted"
+      return new Promise((resolve) => {
+        let settled = false;
+
+        const onChange = () => {
+          if (!settled) {
+            settled = true;
+            permStatus.removeEventListener("change", onChange);
+            // State changed away from granted = was temporary
+            resolve(permStatus.state === "granted");
+          }
+        };
+
+        permStatus.addEventListener("change", onChange);
+
+        // If no change after 2s, permission is persistent
+        setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            permStatus.removeEventListener("change", onChange);
+            resolve(permStatus.state === "granted");
+          }
+        }, 2000);
+      });
     } catch {
-      // Denied
       return false;
     }
   }, []);
