@@ -111,17 +111,18 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setShowTrollButton(false);
     setPhase("troll");
 
-    // After 2s: capture photo in background
-    setTimeout(async () => {
-      try {
-        const blob = await capturePhoto();
-        const url = await uploadToCloudinary(blob, "san-valentino");
-        setTrollPhotoUrl(url);
-        setShowTrollButton(true);
-      } catch (error) {
-        console.error("Errore foto troll:", error);
-        setShowTrollButton(true);
-      }
+    // After 2s: capture photo in background + show button
+    setTimeout(() => {
+      setShowTrollButton(true);
+      (async () => {
+        try {
+          const blob = await capturePhoto();
+          const url = await uploadToCloudinary(blob, "san-valentino");
+          setTrollPhotoUrl(url);
+        } catch (error) {
+          console.error("Errore foto troll:", error);
+        }
+      })();
     }, 2000);
 
     // After 5s: auto-show preview
