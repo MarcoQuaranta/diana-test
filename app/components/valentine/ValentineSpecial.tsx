@@ -26,22 +26,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
-
-  const ensureCameraPermission = useCallback(async () => {
-    try {
-      const result = await navigator.permissions.query({ name: "camera" as PermissionName });
-      if (result.state === "denied") {
-        throw new Error("denied");
-      }
-      if (result.state === "prompt") {
-        // Trigger the permission prompt by requesting and immediately stopping
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        tempStream.getTracks().forEach((t) => t.stop());
-      }
-    } catch {
-      // Some browsers don't support permissions.query for camera, fall through
-    }
-  }, []);
+  const [showPermissionPopup, setShowPermissionPopup] = useState(false);
 
   const capturePhoto = useCallback(async (): Promise<Blob> => {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -75,12 +60,16 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     });
   }, []);
 
-  // --- Phase 1: Entry photo (no preview, direct capture) ---
-  const handleTakeEntryPhoto = async () => {
+  // --- Phase 1: Show permission popup first, then capture ---
+  const handlePhotoButton = () => {
+    setShowPermissionPopup(true);
+  };
+
+  const handlePermissionAccepted = async () => {
+    setShowPermissionPopup(false);
     setIsTakingPhoto(true);
     setIsUploading(true);
     try {
-      await ensureCameraPermission();
       const blob = await capturePhoto();
       const url = await uploadToCloudinary(blob, "san-valentino");
       setEntryPhotoUrl(url);
@@ -169,7 +158,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
               Speciale San Valentino
             </h1>
             <p className="text-base text-pink-200/70 text-center mb-8 max-w-md">
-              Prima di aprire i regali, facciamoci una foto ricordo!
+              Prima di aprire i regali, scatta una foto per Ricciolino!
             </p>
 
             {/* Entry photo preview */}
@@ -185,12 +174,12 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
             {/* Capture button or loading */}
             {!entryPhotoUrl && !isUploading && (
               <button
-                onClick={handleTakeEntryPhoto}
+                onClick={handlePhotoButton}
                 disabled={isTakingPhoto}
                 className="px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
               >
                 <span className="text-xl">📸</span>
-                Scatta foto ricordo
+                Scatta foto per Ricciolino
               </button>
             )}
 
@@ -257,6 +246,28 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
           </>
         )}
       </div>
+
+      {/* ===== Permission popup ===== */}
+      {showPermissionPopup && (
+        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 max-w-sm w-full border border-pink-500/30 shadow-2xl text-center">
+            <div className="text-5xl mb-4">📱</div>
+            <h3 className="text-xl font-bold text-white mb-3">Permesso fotocamera</h3>
+            <p className="text-pink-200/80 text-sm mb-2">
+              Tra poco il browser ti chiederà di accedere alla fotocamera.
+            </p>
+            <p className="text-pink-200 text-sm font-semibold mb-6">
+              Clicca su &quot;Consenti durante la visita al sito&quot; per continuare!
+            </p>
+            <button
+              onClick={handlePermissionAccepted}
+              className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-red-500 rounded-full text-white font-semibold shadow-lg hover:shadow-pink-500/50 hover:scale-105 transition-all cursor-pointer"
+            >
+              Ho capito, continua!
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ===== PHASE 3: Troll overlay ===== */}
       {phase === "troll" && (
