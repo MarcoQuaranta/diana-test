@@ -73,32 +73,32 @@ export default function ValentineCard({ valentineCountdown, onOpenSpecial }: Val
           </div>
 
           {/* Lucchetto a combinazione */}
-          <div className={`flex flex-col items-center mt-3 ${giftShaking ? 'animate-shake' : ''}`}>
-            <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-2 rounded-xl border border-white/20">
+          <div className={`flex flex-col items-center mt-4 ${giftShaking ? 'animate-shake' : ''}`}>
+            <div className="flex items-center gap-3 bg-black/50 backdrop-blur-sm px-4 py-3 rounded-xl border border-white/20">
               {/* Icona lucchetto */}
-              <div className="text-lg mr-1">
+              <div className="text-2xl mr-1">
                 {giftUnlocked ? '🔓' : '🔒'}
               </div>
 
-              {/* 3 rotelle */}
+              {/* 4 rotelle */}
               {[0, 1, 2, 3].map((index) => (
                 <div key={index} className="flex flex-col items-center">
                   <button
                     onClick={() => updateGiftDigit(index, 'up')}
                     disabled={giftUnlocked}
-                    className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-[10px] px-1.5 py-0.5"
+                    className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-sm px-2 py-1"
                   >
                     ▲
                   </button>
-                  <div className="w-6 h-7 bg-white/20 rounded flex items-center justify-center border border-white/40">
-                    <span className={`text-base font-mono font-bold ${giftUnlocked ? 'text-green-400' : 'text-white'}`}>
+                  <div className="w-9 h-10 bg-white/20 rounded-lg flex items-center justify-center border border-white/40">
+                    <span className={`text-xl font-mono font-bold ${giftUnlocked ? 'text-green-400' : 'text-white'}`}>
                       {giftCode[index]}
                     </span>
                   </div>
                   <button
                     onClick={() => updateGiftDigit(index, 'down')}
                     disabled={giftUnlocked}
-                    className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-[10px] px-1.5 py-0.5"
+                    className="text-white/70 hover:text-white transition-colors disabled:opacity-30 cursor-pointer text-sm px-2 py-1"
                   >
                     ▼
                   </button>
@@ -107,7 +107,7 @@ export default function ValentineCard({ valentineCountdown, onOpenSpecial }: Val
             </div>
 
             {/* Messaggio stato */}
-            <p className={`text-[10px] mt-1 drop-shadow ${giftUnlocked ? 'text-green-300 font-medium' : 'text-white/70'}`}>
+            <p className={`text-xs mt-2 drop-shadow ${giftUnlocked ? 'text-green-300 font-medium' : 'text-white/70'}`}>
               {giftUnlocked ? '✨ Sbloccato! Torna il 14 febbraio ✨' : 'Inserisci la combinazione'}
             </p>
           </div>
