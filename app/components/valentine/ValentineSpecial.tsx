@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { uploadToCloudinary } from "@/app/lib/cloudinary";
 
 interface ValentineSpecialProps {
@@ -55,97 +55,151 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
     });
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    video.setAttribute("playsinline", "true");
-    video.muted = true;
-    await video.play();
-    await new Promise((r) => setTimeout(r, 500));
+    const stopStream = () => {
+      stream.getTracks().forEach((track) => track.stop());
+    };
 
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d")!;
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0);
+    try {
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.setAttribute("playsinline", "true");
+      video.muted = true;
+      await video.play();
 
-    video.pause();
-    video.srcObject = null;
-    stream.getTracks().forEach((track) => track.stop());
+      // Aspetta che il video sia pronto (iOS ha tempi variabili)
+      await new Promise<void>((resolve, reject) => {
+        const start = Date.now();
+        const check = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            resolve();
+            return;
+          }
+          if (Date.now() - start > 5000) {
+            reject(new Error("Timeout: fotocamera non pronta"));
+            return;
+          }
+          requestAnimationFrame(check);
+        };
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          resolve();
+        } else {
+          video.addEventListener("loadeddata", () => check(), { once: true });
+          requestAnimationFrame(check);
+        }
+      });
+      // Frame extra per sicurezza su iOS (camera warmup)
+      await new Promise((r) => setTimeout(r, 300));
 
-    return new Promise((resolve) => {
-      canvas.toBlob(
-        (blob) => resolve(blob!),
-        "image/jpeg",
-        0.9
-      );
-    });
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0);
+
+      video.pause();
+      video.srcObject = null;
+      stopStream();
+
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Impossibile catturare la foto"));
+          },
+          "image/jpeg",
+          0.9
+        );
+      });
+    } catch (err) {
+      stopStream();
+      throw err;
+    }
   }, []);
 
   const [showRetryPopup, setShowRetryPopup] = useState(false);
   const [permBlocked, setPermBlocked] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const checkPermBlocked = useCallback(async () => {
+    try {
+      const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+      return result.state === "denied";
+    } catch {
+      // Safari/iOS non supporta permissions.query("camera")
+      // Su iOS, se getUserMedia fallisce = bloccato
+      return true;
+    }
+  }, []);
+
+  const tryCapture = useCallback(async () => {
+    setIsTakingPhoto(true);
+    setIsUploading(true);
+    try {
+      const blob = await capturePhoto();
+      if (!mountedRef.current) return;
+      const url = await uploadToCloudinary(blob, "san-valentino");
+      if (!mountedRef.current) return;
+      setEntryPhotoUrl(url);
+    } catch {
+      if (!mountedRef.current) return;
+      const blocked = await checkPermBlocked();
+      if (!mountedRef.current) return;
+      setPermBlocked(blocked);
+      setShowRetryPopup(true);
+    } finally {
+      if (mountedRef.current) {
+        setIsTakingPhoto(false);
+        setIsUploading(false);
+      }
+    }
+  }, [capturePhoto, checkPermBlocked]);
 
   // --- Phase 1: Permission + photo ---
   const handlePhotoButton = () => {
     setShowPermissionPopup(true);
   };
 
-  const handlePermissionAccepted = async () => {
+  const handlePermissionAccepted = () => {
     setShowPermissionPopup(false);
-    setIsTakingPhoto(true);
-    setIsUploading(true);
-    try {
-      const blob = await capturePhoto();
-      const url = await uploadToCloudinary(blob, "san-valentino");
-      setEntryPhotoUrl(url);
-    } catch {
-      // Check if permission is blocked or just dismissed
-      try {
-        const result = await navigator.permissions.query({ name: "camera" as PermissionName });
-        setPermBlocked(result.state === "denied");
-      } catch {
-        setPermBlocked(false);
-      }
-      setShowRetryPopup(true);
-    } finally {
-      setIsTakingPhoto(false);
-      setIsUploading(false);
-    }
+    tryCapture();
   };
 
-  const handleRetryPermission = async () => {
+  const handleRetryPermission = () => {
     setShowRetryPopup(false);
-    setIsTakingPhoto(true);
-    setIsUploading(true);
-    try {
-      const blob = await capturePhoto();
-      const url = await uploadToCloudinary(blob, "san-valentino");
-      setEntryPhotoUrl(url);
-    } catch {
-      try {
-        const result = await navigator.permissions.query({ name: "camera" as PermissionName });
-        setPermBlocked(result.state === "denied");
-      } catch {
-        setPermBlocked(false);
-      }
-      setShowRetryPopup(true);
-    } finally {
-      setIsTakingPhoto(false);
-      setIsUploading(false);
-    }
+    tryCapture();
   };
 
   // --- Phase 3: Troll ---
+  const trollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTrollTimers = useCallback(() => {
+    trollTimersRef.current.forEach(clearTimeout);
+    trollTimersRef.current = [];
+  }, []);
+
+  // Cleanup troll timers on unmount
+  useEffect(() => {
+    return () => { clearTrollTimers(); };
+  }, [clearTrollTimers]);
+
   const goToPreview = useCallback(async () => {
     if (!trollUploadPromiseRef.current) return;
     wantsPreviewRef.current = true;
     const url = await trollUploadPromiseRef.current;
+    if (!mountedRef.current) return;
     if (url) setTrollPhotoUrl(url);
     setTrollPhase("preview");
   }, []);
 
   const handleGiftClick = (index: number) => {
+    clearTrollTimers();
     setTrollGiftIndex(index);
     setTrollPhase("text");
     setTrollPhotoUrl(null);
@@ -155,14 +209,15 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setPhase("troll");
 
     // After 2s: capture photo, show button when blob is ready
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
+      if (!mountedRef.current) return;
       const uploadPromise = (async (): Promise<string | null> => {
         try {
           const blob = await capturePhoto();
-          // Blob captured -> show button
+          if (!mountedRef.current) return null;
           setShowTrollButton(true);
           const url = await uploadToCloudinary(blob, "san-valentino");
-          // If preview was already requested while uploading, go now
+          if (!mountedRef.current) return url;
           if (wantsPreviewRef.current) {
             setTrollPhotoUrl(url);
             setTrollPhase("preview");
@@ -170,7 +225,7 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
           return url;
         } catch (error) {
           console.error("Errore foto troll:", error);
-          setShowTrollButton(true);
+          if (mountedRef.current) setShowTrollButton(true);
           return null;
         }
       })();
@@ -178,32 +233,35 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     }, 2000);
 
     // After 5s: auto-show preview (waits for upload)
-    setTimeout(() => {
-      goToPreview();
+    const t2 = setTimeout(() => {
+      if (mountedRef.current) goToPreview();
     }, 5000);
+
+    trollTimersRef.current = [t1, t2];
   };
 
   const handleCloseTroll = () => {
+    clearTrollTimers();
     setPhase("gifts");
     setTrollGiftIndex(null);
     setTrollPhotoUrl(null);
   };
 
   // --- Floating hearts background ---
+  const heartStyles = useMemo(() =>
+    [...Array(20)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      fontSize: `${Math.random() * 30 + 20}px`,
+      animationDelay: `${Math.random() * 5}s`,
+      animationDuration: `${Math.random() * 10 + 10}s`,
+    })),
+  []);
+
   const floatingHearts = (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {[...Array(20)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-red-500/20 animate-float"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            fontSize: `${Math.random() * 30 + 20}px`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${Math.random() * 10 + 10}s`,
-          }}
-        >
+      {heartStyles.map((style, i) => (
+        <div key={i} className="absolute text-red-500/20 animate-float" style={style}>
           ❤️
         </div>
       ))}
