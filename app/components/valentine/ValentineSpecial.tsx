@@ -27,6 +27,22 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
   const [trollGiftIndex, setTrollGiftIndex] = useState<number | null>(null);
   const [trollPhase, setTrollPhase] = useState<TrollPhase>("text");
 
+  const ensureCameraPermission = useCallback(async () => {
+    try {
+      const result = await navigator.permissions.query({ name: "camera" as PermissionName });
+      if (result.state === "denied") {
+        throw new Error("denied");
+      }
+      if (result.state === "prompt") {
+        // Trigger the permission prompt by requesting and immediately stopping
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        tempStream.getTracks().forEach((t) => t.stop());
+      }
+    } catch {
+      // Some browsers don't support permissions.query for camera, fall through
+    }
+  }, []);
+
   const capturePhoto = useCallback(async (): Promise<Blob> => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -34,8 +50,9 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     const video = document.createElement("video");
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
+    video.muted = true;
     await video.play();
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 500));
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -63,11 +80,13 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
     setIsTakingPhoto(true);
     setIsUploading(true);
     try {
+      await ensureCameraPermission();
       const blob = await capturePhoto();
       const url = await uploadToCloudinary(blob, "san-valentino");
       setEntryPhotoUrl(url);
-    } catch {
-      alert("Non riesco ad accedere alla fotocamera. Controlla i permessi!");
+    } catch (err) {
+      console.error("Errore fotocamera:", err);
+      alert("Non riesco ad accedere alla fotocamera. Vai nelle impostazioni del browser e abilita la fotocamera per questo sito!");
     } finally {
       setIsTakingPhoto(false);
       setIsUploading(false);
