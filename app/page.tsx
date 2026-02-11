@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { sendNotification } from "@/app/lib/notifications";
 import { complimentiAI } from "@/app/lib/data";
 import { useTimeTogether } from "@/app/lib/hooks/useTimeTogether";
@@ -47,15 +47,6 @@ export default function Home() {
   const [showCoinFlip, setShowCoinFlip] = useState(false);
   const [showValentineSpecial, setShowValentineSpecial] = useState(false);
 
-  // Reopen Valentine after permission check reload
-  useEffect(() => {
-    const reopen = sessionStorage.getItem("reopenValentine");
-    if (reopen) {
-      sessionStorage.removeItem("reopenValentine");
-      setShowPrime(true);
-      setShowValentineSpecial(true);
-    }
-  }, []);
 
   // Cross-popup state
   const [richiestaMessage, setRichiestaMessage] = useState("");
