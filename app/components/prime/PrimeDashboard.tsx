@@ -82,7 +82,9 @@ export default function PrimeDashboard({
         <TimerInsieme timeTogether={timeTogether} />
 
         {/* Speciale San Valentino - Pacco Regalo */}
-        <ValentineCard valentineCountdown={valentineCountdown} onOpenSpecial={onOpenValentineSpecial} />
+        <div className="my-6">
+          <ValentineCard valentineCountdown={valentineCountdown} onOpenSpecial={onOpenValentineSpecial} />
+        </div>
 
         {/* Galleria Foto */}
         <GalleryCarousel

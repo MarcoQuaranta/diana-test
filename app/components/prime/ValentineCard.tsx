@@ -7,7 +7,7 @@ interface ValentineCardProps {
 }
 
 export default function ValentineCard({ valentineCountdown, onOpenSpecial }: ValentineCardProps) {
-  const [giftCode, setGiftCode] = useState([0, 0, 0]);
+  const [giftCode, setGiftCode] = useState([0, 0, 0, 0]);
   const [giftUnlocked, setGiftUnlocked] = useState(false);
   const [giftShaking, setGiftShaking] = useState(false);
 
@@ -20,7 +20,7 @@ export default function ValentineCard({ valentineCountdown, onOpenSpecial }: Val
     }
     setGiftCode(newCode);
 
-    if (newCode[0] === 5 && newCode[1] === 6 && newCode[2] === 7) {
+    if (newCode[0] === 2 && newCode[1] === 6 && newCode[2] === 1 && newCode[3] === 2) {
       setGiftUnlocked(true);
       setTimeout(() => {
         onOpenSpecial();
@@ -81,7 +81,7 @@ export default function ValentineCard({ valentineCountdown, onOpenSpecial }: Val
               </div>
 
               {/* 3 rotelle */}
-              {[0, 1, 2].map((index) => (
+              {[0, 1, 2, 3].map((index) => (
                 <div key={index} className="flex flex-col items-center">
                   <button
                     onClick={() => updateGiftDigit(index, 'up')}
