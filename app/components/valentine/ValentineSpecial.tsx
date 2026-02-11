@@ -94,6 +94,8 @@ export default function ValentineSpecial({ onClose }: ValentineSpecialProps) {
       // Request camera to trigger browser prompt
       const testStream = await navigator.mediaDevices.getUserMedia({ video: true });
       testStream.getTracks().forEach((t) => t.stop());
+      // Wait for browser to update permission state after stream release
+      await new Promise((r) => setTimeout(r, 1000));
       // Check if permission is persistent (not "only this time")
       const result = await navigator.permissions.query({ name: "camera" as PermissionName });
       return result.state === "granted";
